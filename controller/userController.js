@@ -251,6 +251,23 @@ exports.signInWithOTP = async (req, res) => {
     user.otpExpiration = otpExpiration;
     await user.save();
 
+    // Prepare user data to be saved in a single cookie
+    const userData = {
+      userId: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      isActive: user.isActive,
+      isEmailVerified: user.isEmailVerified,
+    };
+
+    // Store all user data in one cookie
+    res.cookie("userData", JSON.stringify(userData), {
+      // Set the cookie without an expiration (it will last until the browser session ends)
+      httpOnly: true, // Mitigate XSS attacks
+      sameSite: "strict", // Provide some CSRF protection
+    });
+
     // Prepare email options
     const mailOptions = {
       from: process.env.MAIL_ID,
@@ -282,20 +299,24 @@ exports.signInWithOTP = async (req, res) => {
   }
 };
 
+
 exports.verifyOTP = async (req, res) => {
   try {
-    const { email, otp } = req.body;
+    const { otp } = req.body;
+    const userData = req.cookies.userData ? JSON.parse(req.cookies.userData) : null; // Get userData from cookies
+
+    console.log("otp, userData", otp, userData); // Debugging log to check otp and userData
 
     // Check for required fields
-    if (!otp) {
+    if (!otp || !userData || !userData.userId) {
       return res.status(400).json({
-        message: "OTP is required!",
+        message: "OTP and User ID are required!",
         success: false,
       });
     }
 
-    // Find the user by email
-    const user = await User.findOne({ email });
+    // Find the user by ID
+    const user = await User.findById(userData.userId); // Use userId from userData
     if (!user) {
       return res.status(404).json({
         message: "User not found!",
@@ -349,6 +370,10 @@ exports.verifyOTP = async (req, res) => {
     });
   }
 };
+
+
+
+
 
 
 //forgot password
