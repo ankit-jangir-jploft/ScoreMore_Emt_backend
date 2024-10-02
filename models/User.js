@@ -1,25 +1,29 @@
 const mongoose = require("mongoose");
+
 const userSchema = new mongoose.Schema(
   {
     firstName: {
       type: String,
+      trim: true,
     },
     lastName: {
       type: String,
+      trim: true,
     },
     email: {
       type: String,
       required: true,
       unique: true,
+      trim: true,
+      lowercase: true,
     },
-    otp : {
-      type: String
+    mobileNumber: {
+      type: Number,
+    },
+    otp: {
+      type: String,
     },
     password: {
-      type: String,
-      required: true,
-    },
-    confirmPassword: {
       type: String,
       required: true,
     },
@@ -28,7 +32,11 @@ const userSchema = new mongoose.Schema(
       default: 'user',
       enum: ['user', 'admin'],
     },
-     isEmailVerified: {
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    isActive: {
       type: Boolean,
       default: false,
     },
@@ -38,5 +46,4 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-
-module.exports = mongoose.model("User", userSchema); 
+module.exports = mongoose.model("User", userSchema);
