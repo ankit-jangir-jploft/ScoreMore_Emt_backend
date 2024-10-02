@@ -1,0 +1,30 @@
+{
+  "name": "scoremore_emt_backend",
+  "version": "1.0.0",
+  "description": "\"scoremore backend\"",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "ScoreMore_Emt_backend"
+  },
+  "author": "\"jpLoft\"",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "body-parser": "^1.20.3",
+    "cors": "^2.8.5",
+    "crypto": "^1.0.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "google": "^2.1.0",
+    "googleapis": "^144.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.7.0",
+    "morgan": "^1.10.0",
+    "nodemailer": "^6.9.15"
+  }
+}
