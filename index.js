@@ -4,7 +4,8 @@ const app = express();
 require('dotenv').config();
 const port = process.env.PORT;
 const cors = require('cors');
-const morgan = require('morgan')
+const morgan = require('morgan');
+const cookieParser = require("cookie-parser");
 
 //routes
 const userRoutes = require("./routes/userRoutes");
@@ -14,6 +15,8 @@ const connectDb = require("./utils/db");
 
 //middlewares
 app.use(express.json());
+app.use(express.json());
+app.use(cookieParser());
 app.use(
     bodyParser.json({ limit: "1024mb" }),
     bodyParser.urlencoded({

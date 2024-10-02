@@ -1,9 +1,12 @@
 const jwt = require("jsonwebtoken");
+const User = require("../models/User"); 
+// Adjust the path as necessary
 
 const isAuthenticated = async (req, res, next) => {
   try {
     const token = req.cookies.token;
-    console.log("token", req.cookies)
+    console.log("token", req.cookies);
+    
     if (!token) {
       return res.status(401).json({
         message: "User not authenticated!",
@@ -19,7 +22,16 @@ const isAuthenticated = async (req, res, next) => {
       });
     }
 
-    req.id = decode.userId;
+    // Find user by ID and set it in req.user
+    const user = await User.findById(decode.userId);
+    if (!user) {
+      return res.status(401).json({
+        message: "User not found!",
+        success: false,
+      });
+    }
+
+    req.user = user; // Set the user object in req.user
     next();
   } catch (err) {
     console.log("Error in authentication", err);
