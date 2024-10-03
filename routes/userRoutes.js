@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const userController = require("../controller/userController");
 const isAuthenticated = require("../middleware/isAuthanticated");
+const { upload } = require("../middleware/multer");
 
 // Public routes
 router.post("/signup", userController.signup);
@@ -10,13 +11,16 @@ router.post('/signin/otp', userController.signInWithOTP);
 router.post('/verify/otp', userController.verifyOTP);
 router.get("/verify-email", userController.verifyEmail);
 
-// Forgot password and reset password 
+// My Profile
+router.get("/myProfile", isAuthenticated, userController.myProfile);
+
+// Forgot Password and Reset Password 
 router.post('/forgotPassword', userController.forgotPassword);
 router.post("/resetPassword", userController.resetPassword);
 
 // Protected routes (require authentication)
-router.post("/editProfile", isAuthenticated, userController.editProfile);
+router.patch("/editProfile", isAuthenticated, upload, userController.editProfile); 
 router.post("/logout", isAuthenticated, userController.logout); 
-router.patch("/delete", isAuthenticated, userController.deactivateUser)
+router.patch("/delete", isAuthenticated, userController.deactivateUser);
 
 module.exports = router;

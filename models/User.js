@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
     },
     mobileNumber: {
-      type: Number,
+      type: String,
     },
     otp: {
       type: String,
@@ -26,6 +26,9 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
+    },
+    profilePicture: { 
+      type: String
     },
     role: {
       type: String,
