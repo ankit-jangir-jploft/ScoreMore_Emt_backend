@@ -13,7 +13,7 @@ const connectDb = require("./utils/db");
 
 // CORS Configuration
 const corsOptions = {
-  origin: "http://localhost:5173", // Your frontend origin
+  origin: "http://localhost:5173", // Your frontend originonsole.log
   credentials: true, // Allow credentials (cookies, etc.)
 };
 

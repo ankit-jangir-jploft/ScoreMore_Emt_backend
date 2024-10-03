@@ -16,7 +16,7 @@ router.post("/resetPassword", userController.resetPassword);
 
 // Protected routes (require authentication)
 router.post("/editProfile", isAuthenticated, userController.editProfile);
-router.get("/logout", isAuthenticated, userController.logout); 
+router.post("/logout", isAuthenticated, userController.logout); 
 router.patch("/delete", isAuthenticated, userController.deactivateUser)
 
 module.exports = router;

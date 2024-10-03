@@ -149,32 +149,13 @@ exports.signInWithPassword = async (req, res) => {
       });
     }
 
-     // Check if user is active and email is verified
-     if (!user.isActive) {
+    // Check if user is active and email is verified
+    if (!user.isActive || !user.isEmailVerified) {
       return res.status(403).json({
-        message: "Your account is inactive. Please contact support.",
+        message: "Account is inactive or email not verified.",
         success: false,
       });
     }
-
-    if (!user.isEmailVerified) {
-      return res.status(403).json({
-        message: "Your email address is not verified. Please verify your email.",
-        success: false,
-      });
-    }
-
-    // Prepare user data for response (omit sensitive information)
-    const userResponse = {
-      _id: user._id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      role : user.role,
-      isActive : user.isActive,
-      isEmailVerified : user.isEmailVerified,
-      mobileNumber: user.mobileNumber, // Ensure this matches your model
-    };
 
     // Generate JWT token
     const tokenData = { userId: user._id };
@@ -182,19 +163,24 @@ exports.signInWithPassword = async (req, res) => {
       expiresIn: "1d", // Token expiration
     });
 
-    // Set token in a cookie
-    return res
-      .status(200)
-      .cookie("token", token, {
-        maxAge: 24 * 60 * 60 * 1000, // 1 day
-        httpOnly: true, // Mitigate XSS attacks
-        sameSite: "strict", // Provide some CSRF protection
-      })
-      .json({
-        message: `Welcome back ${userResponse.firstName}`, // Updated to use firstName
-        user: userResponse,
-        success: true,
-      });
+    const userResponse = {
+      _id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive,
+      isEmailVerified: user.isEmailVerified,
+      mobileNumber: user.mobileNumber,
+    };
+
+    // Send token in response body
+    return res.status(200).json({
+      message: `Welcome back ${userResponse.firstName}`,
+      user: userResponse,
+      token, // Send token in response
+      success: true,
+    });
   } catch (err) {
     console.log("Error in login", err);
     return res.status(500).json({
@@ -203,6 +189,7 @@ exports.signInWithPassword = async (req, res) => {
     });
   }
 };
+
 
 exports.signInWithOTP = async (req, res) => {
   try {
@@ -349,19 +336,24 @@ exports.verifyOTP = async (req, res) => {
     const tokenData = { userId: user._id };
     const token = await jwt.sign(tokenData, process.env.SECRET_KEY, { expiresIn: "1d" });
 
-    // Respond with a cookie containing the token
-    return res
-      .status(200)
-      .cookie("token", token, {
-        maxAge: 24 * 60 * 60 * 1000, // 1 day
-        httpOnly: true,
-        sameSite: "strict",
-      })
-      .json({
-        message: `Welcome back ${user.firstName}`,
-        user,
-        success: true,
-      });
+    const userResponse = {
+      _id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive,
+      isEmailVerified: user.isEmailVerified,
+      mobileNumber: user.mobileNumber,
+    };
+
+    // Respond with token in JSON response
+    return res.status(200).json({
+      message: `Welcome back ${user.firstName}`,
+      user: userResponse,
+      token, // Send token in response
+      success: true,
+    });
   } catch (err) {
     console.log("Error in verifying OTP", err);
     return res.status(500).json({
@@ -370,6 +362,7 @@ exports.verifyOTP = async (req, res) => {
     });
   }
 };
+
 
 
 
@@ -441,18 +434,22 @@ exports.forgotPassword = async (req, res) => {
 
 exports.resetPassword = async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body;
+    console.log("req.body", req.body)
+    const { otp, newPassword, email } = req.body;
+    
+    console.log("req.otp", otp, newPassword,email )
 
     // Validate input
-    if (!email || !otp || !newPassword) {
+    if (!email|| !otp || !newPassword) {
       return res.status(400).json({
-        message: "Email, OTP, and new password are required!",
+        message: "User ID, OTP, and new password are required!",
         success: false,
       });
     }
 
-    // Find the user
+    // Find the user by userId
     const user = await User.findOne({ email });
+
     if (!user || user.otp !== otp) {
       return res.status(400).json({
         message: "Invalid OTP!",
@@ -487,6 +484,7 @@ exports.resetPassword = async (req, res) => {
     });
   }
 };
+
 
 
 
