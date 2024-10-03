@@ -3,7 +3,8 @@ const bcrypt = require("bcrypt");
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
 const nodeMailer = require("nodemailer")
-const crypto = require("crypto")
+const crypto = require("crypto");
+const path = require('path');
 
 exports.signup = async (req, res) => {
   try {
@@ -289,21 +290,21 @@ exports.signInWithOTP = async (req, res) => {
 
 exports.verifyOTP = async (req, res) => {
   try {
-    const { otp } = req.body;
-    const userData = req.cookies.userData ? JSON.parse(req.cookies.userData) : null; // Get userData from cookies
+    const { otp, email } = req.body;
+    // const userData = req.cookies.userData ? JSON.parse(req.cookies.userData) : null; // Get userData from cookies
 
     console.log("otp, userData", otp, userData); // Debugging log to check otp and userData
 
     // Check for required fields
-    if (!otp || !userData || !userData.userId) {
+    if (!otp || !email) {
       return res.status(400).json({
-        message: "OTP and User ID are required!",
+        message: "OTP and email are required!",
         success: false,
       });
     }
 
     // Find the user by ID
-    const user = await User.findById(userData.userId); // Use userId from userData
+    const user = await User.findById(email); // Use userId from userData
     if (!user) {
       return res.status(404).json({
         message: "User not found!",
@@ -488,13 +489,18 @@ exports.resetPassword = async (req, res) => {
 
 
 
-
-
- 
 exports.editProfile = async (req, res) => {
+  console.log("Incoming request body:", req.body); // Log incoming request body
   try {
-    const { _id } = req.user; // Assuming user ID is available from authentication middleware
-    const { firstName, lastName, email, password } = req.body;
+    const { _id } = req.user; // Get the user ID from the authenticated request
+    const { firstName, lastName, email, mobileNumber } = req.body; 
+    console.log("req.file", req.file); // Log the uploaded file info
+
+    // Get the uploaded file path if it exists and convert to a relative path
+    const profilePicture = req.file ? path.relative(__dirname, req.file.path) : undefined;
+
+    // Log the values being updated
+    console.log("Updating user:", { firstName, lastName, email, mobileNumber, profilePicture });
 
     // Find the user by ID
     const user = await User.findById(_id);
@@ -505,7 +511,7 @@ exports.editProfile = async (req, res) => {
       });
     }
 
-    // Check if new email already exists in the system, if provided
+    // Check if new email already exists in the system
     if (email && email !== user.email) {
       const existingEmail = await User.findOne({ email });
       if (existingEmail) {
@@ -520,12 +526,8 @@ exports.editProfile = async (req, res) => {
     user.firstName = firstName || user.firstName;
     user.lastName = lastName || user.lastName;
     user.email = email || user.email;
-
-    // If the user wants to change their password, hash the new password
-    if (password) {
-      const hashPassword = await bcrypt.hash(password, 10);
-      user.password = hashPassword;
-    }
+    user.mobileNumber = mobileNumber || user.mobileNumber; // Ensure this is being updated
+    user.profilePicture = profilePicture || user.profilePicture; // Update the profile picture path
 
     // Save the updated user details
     await user.save();
@@ -533,7 +535,7 @@ exports.editProfile = async (req, res) => {
     return res.status(200).json({
       message: "Profile updated successfully",
       success: true,
-      data: user
+      data: user,
     });
   } catch (err) {
     console.error("Error updating profile:", err);
@@ -543,6 +545,10 @@ exports.editProfile = async (req, res) => {
     });
   }
 };
+
+
+
+
 
 exports.updateUserStatus = async (req, res) => {
   try {
@@ -605,6 +611,47 @@ exports.deactivateUser = async (req, res) => {
           message: 'Internal server error',
           success: false,
       });
+  }
+};
+
+
+exports.myProfile = async (req, res) => {
+  try {
+    // Extract token from the Authorization header
+    const token = req.headers.authorization.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({
+        message: "No token provided!",
+        success: false,
+      });
+    }
+
+    // Verify the token
+    const decoded = jwt.verify(token, process.env.SECRET_KEY);
+    
+    // Find the user by ID
+    const user = await User.findById(decoded.userId); // Adjust if the ID is stored differently in the token
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found!",
+        success: false,
+      });
+    }
+
+    // Exclude sensitive data if necessary
+    const { password, otp, otpExpiration, ...userProfile } = user.toObject();
+
+    // Respond with the user profile
+    return res.status(200).json({
+      success: true,
+      user: userProfile,
+    });
+  } catch (error) {
+    console.error("Error fetching user profile:", error);
+    return res.status(500).json({
+      message: "Internal server error",
+      success: false,
+    });
   }
 };
 
