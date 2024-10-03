@@ -6,6 +6,7 @@ const port = process.env.PORT || 5000; // Default to port 5000 if not set
 const cors = require("cors");
 const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
+const path = require('path')
 
 // Routes
 const userRoutes = require("./routes/userRoutes");
@@ -25,6 +26,9 @@ app.use(bodyParser.json({ limit: "1024mb" })); // Set limits for JSON body
 app.use(bodyParser.urlencoded({ limit: "1024mb", extended: true })); // Set limits for URL-encoded body
 app.use(morgan("dev")); // Logging middleware
 
+
+
+app.use('/assets', express.static(path.join(__dirname, 'middleware', 'assets')));
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
