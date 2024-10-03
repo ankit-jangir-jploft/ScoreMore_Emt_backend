@@ -293,7 +293,7 @@ exports.verifyOTP = async (req, res) => {
     const { otp, email } = req.body;
     // const userData = req.cookies.userData ? JSON.parse(req.cookies.userData) : null; // Get userData from cookies
 
-    console.log("otp, userData", otp, userData); // Debugging log to check otp and userData
+    // console.log("otp, userData", otp, userData); // Debugging log to check otp and userData
 
     // Check for required fields
     if (!otp || !email) {
@@ -304,7 +304,7 @@ exports.verifyOTP = async (req, res) => {
     }
 
     // Find the user by ID
-    const user = await User.findById(email); // Use userId from userData
+    const user = await User.findOne({ email }); // Use userId from userData
     if (!user) {
       return res.status(404).json({
         message: "User not found!",
