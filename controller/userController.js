@@ -490,46 +490,37 @@ exports.resetPassword = async (req, res) => {
 
 
 exports.editProfile = async (req, res) => {
-  console.log("Incoming request body:", req.body); // Log incoming request body
   try {
-    const { _id } = req.user; // Get the user ID from the authenticated request
+    const { _id } = req.user; 
     const { firstName, lastName, email, mobileNumber } = req.body; 
-    console.log("req.file", req.file); // Log the uploaded file info
 
-    // Get the uploaded file path if it exists and convert to a relative path
-    const profilePicture = req.file ? path.relative(__dirname, req.file.path) : undefined;
+    let profilePicture;
 
-    // Log the values being updated
-    console.log("Updating user:", { firstName, lastName, email, mobileNumber, profilePicture });
-
-    // Find the user by ID
-    const user = await User.findById(_id);
-    if (!user) {
-      return res.status(404).json({
-        message: "User not found",
-        success: false,
-      });
+    if (req.file) {
+      // Extract just the filename (not the full path)
+      profilePicture = path.basename(req.file.path);
     }
 
-    // Check if new email already exists in the system
+    const user = await User.findById(_id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found", success: false });
+    }
+
+    // Check if the email is being changed and verify its uniqueness
     if (email && email !== user.email) {
       const existingEmail = await User.findOne({ email });
       if (existingEmail) {
-        return res.status(400).json({
-          message: "Email already in use by another account",
-          success: false,
-        });
+        return res.status(400).json({ message: "Email already in use by another account", success: false });
       }
     }
 
-    // Update user fields only if they are provided
+    // Update user details
     user.firstName = firstName || user.firstName;
     user.lastName = lastName || user.lastName;
     user.email = email || user.email;
-    user.mobileNumber = mobileNumber || user.mobileNumber; // Ensure this is being updated
-    user.profilePicture = profilePicture || user.profilePicture; // Update the profile picture path
+    user.mobileNumber = mobileNumber || user.mobileNumber; 
+    user.profilePicture = profilePicture || user.profilePicture; // Update profile picture if new one is uploaded
 
-    // Save the updated user details
     await user.save();
 
     return res.status(200).json({
@@ -539,12 +530,12 @@ exports.editProfile = async (req, res) => {
     });
   } catch (err) {
     console.error("Error updating profile:", err);
-    return res.status(500).json({
-      message: "Internal server error",
-      success: false,
-    });
+    return res.status(500).json({ message: "Internal server error", success: false });
   }
 };
+
+
+
 
 
 
