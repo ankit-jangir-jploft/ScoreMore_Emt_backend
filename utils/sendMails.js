@@ -6,7 +6,7 @@ const { GOOGLE_CLIENT, GOOGLE_SECRET, MAIL_ID } = process.env
 const oauth2Client = new google.auth.OAuth2(
   GOOGLE_CLIENT,        
   GOOGLE_SECRET,    
-  'http://localhost:3000/oauth2callback' 
+  'http://v4.checkprojectstatus.com:3333//oauth2callback' 
 );
 
 
