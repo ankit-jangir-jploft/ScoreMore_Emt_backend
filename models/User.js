@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 
+// User Schema
 const userSchema = new mongoose.Schema(
   {
     firstName: {
@@ -27,8 +28,8 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    profilePicture: { 
-      type: String
+    profilePicture: {
+      type: String,
     },
     role: {
       type: String,
@@ -49,4 +50,52 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("User", userSchema);
+// User Question Data Schema
+const userQuestionDataSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: true,
+        ref: 'User' // Assuming you have a User model
+    },
+    questionId: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: true,
+        ref: 'Question' // Assuming you have a Question model
+    },
+    isCorrect: {
+        type: Boolean,
+        required: true
+    },
+    isMarked: {
+        type: Boolean,
+        default: false
+    },
+    timeTaken: {
+        type: String, // Store time in seconds or milliseconds
+        required: true
+    },
+    level: {
+        type: String,
+        required: true
+    },
+    isUsed: {
+        type: Boolean,
+        default: true
+    },
+    isOmitted: {
+        type: Boolean,
+        default: false
+    },
+    testId : {
+      type: String,
+      required: true
+    }
+}, {
+    timestamps: true // Automatically add createdAt and updatedAt fields
+});
+
+// Exporting both models
+const User = mongoose.model("User", userSchema);
+const UserQuestionData = mongoose.model('UserQuestionData', userQuestionDataSchema);
+
+module.exports = { User, UserQuestionData };

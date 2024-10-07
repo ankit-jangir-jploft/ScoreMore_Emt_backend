@@ -23,4 +23,10 @@ router.patch("/editProfile", isAuthenticated, upload, userController.editProfile
 router.post("/logout", isAuthenticated, userController.logout); 
 router.patch("/delete", isAuthenticated, userController.deactivateUser);
 
+
+
+
+// User question route
+router.post("/userQuestionData", isAuthenticated, userController.userQuestionData)
+
 module.exports = router;
