@@ -1,4 +1,4 @@
-const User = require("../models/User");
+const {User, UserQuestionData} = require("../models/User");
 const bcrypt = require("bcrypt");
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
@@ -160,9 +160,7 @@ exports.signInWithPassword = async (req, res) => {
 
     // Generate JWT token
     const tokenData = { userId: user._id };
-    const token = jwt.sign(tokenData, process.env.SECRET_KEY, {
-      expiresIn: "1d", // Token expiration
-    });
+    const token = jwt.sign(tokenData, process.env.SECRET_KEY);
 
     const userResponse = {
       _id: user._id,
@@ -190,7 +188,6 @@ exports.signInWithPassword = async (req, res) => {
     });
   }
 };
-
 
 exports.signInWithOTP = async (req, res) => {
   try {
@@ -287,15 +284,10 @@ exports.signInWithOTP = async (req, res) => {
   }
 };
 
-
 exports.verifyOTP = async (req, res) => {
   try {
     const { otp, email } = req.body;
-    // const userData = req.cookies.userData ? JSON.parse(req.cookies.userData) : null; // Get userData from cookies
-
-    // console.log("otp, userData", otp, userData); // Debugging log to check otp and userData
-
-    // Check for required fields
+    
     if (!otp || !email) {
       return res.status(400).json({
         message: "OTP and email are required!",
@@ -335,7 +327,7 @@ exports.verifyOTP = async (req, res) => {
 
     // Generate a JWT token for the user
     const tokenData = { userId: user._id };
-    const token = await jwt.sign(tokenData, process.env.SECRET_KEY, { expiresIn: "1d" });
+    const token = await jwt.sign(tokenData, process.env.SECRET_KEY);
 
     const userResponse = {
       _id: user._id,
@@ -363,11 +355,6 @@ exports.verifyOTP = async (req, res) => {
     });
   }
 };
-
-
-
-
-
 
 
 //forgot password
@@ -486,9 +473,6 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
-
-
-
 exports.editProfile = async (req, res) => {
   try {
     const { _id } = req.user; 
@@ -533,12 +517,6 @@ exports.editProfile = async (req, res) => {
     return res.status(500).json({ message: "Internal server error", success: false });
   }
 };
-
-
-
-
-
-
 
 
 exports.updateUserStatus = async (req, res) => {
@@ -645,6 +623,51 @@ exports.myProfile = async (req, res) => {
     });
   }
 };
+
+
+// save  user Question data
+
+
+exports.userQuestionData = async (req, res) => {
+  try {
+    console.log("req.body", req.body);
+    console.log("req.body", req.body.testId)
+    const { userId, questionId, isCorrect, isMarked, timeTaken, level, isUsed, isOmitted, testId } = req.body;
+
+    // Validation: Ensure all required fields are provided
+    if (!userId || !questionId || !testId || typeof isCorrect === 'undefined' || !timeTaken || !level) {
+      return res.status(400).json({ message: 'Missing required fields', success: false });
+    }
+
+    // Create new UserQuestionData document
+    const questionData = new UserQuestionData({
+      userId,
+      questionId,
+      isCorrect,
+      isMarked: isMarked || false, // Defaults to false if not provided
+      timeTaken,
+      level,
+      isUsed: isUsed || true, // Defaults to true if not provided
+      isOmitted: isOmitted || false,
+      testId 
+    });
+    console.log("questin data", questionData)
+
+    // Save the data
+    await questionData.save();
+
+    res.status(201).json({success : true,  message: 'Question data saved successfully', data: questionData });
+  } catch (err) {
+    console.error("Error saving question data:", err);
+    return res.status(500).json({success : false , message: "Internal server error", success: false });
+  }
+};
+
+
+
+
+
+
 
 
 

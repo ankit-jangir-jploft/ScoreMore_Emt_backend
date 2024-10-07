@@ -1,5 +1,6 @@
-const jwt = require("jsonwebtoken");
-const User = require("../models/User"); // Adjust the path as necessary
+const jwt = require("jsonwebtoken"); // Adjust the path as necessary
+const { User } = require("../models/User");
+// Adjust the path as necessary
 
 const isAuthenticated = async (req, res, next) => {
   try {
@@ -24,6 +25,7 @@ const isAuthenticated = async (req, res, next) => {
     }
 
     // Find user by ID and set it in req.user
+    console.log("decoded.userId", decoded.userId)
     const user = await User.findById(decoded.userId); // Ensure your JWT has a userId in the payload
     if (!user) {
       return res.status(401).json({
