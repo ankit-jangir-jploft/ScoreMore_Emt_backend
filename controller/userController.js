@@ -2,7 +2,7 @@ const {User, UserQuestionData} = require("../models/User");
 const bcrypt = require("bcrypt");
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
-const nodeMailer = require("nodemailer")
+const nodeMailer = require("nodemailer");
 const crypto = require("crypto");
 const path = require('path');
 
@@ -106,12 +106,8 @@ exports.verifyEmail = async (req, res) => {
     user.isActive = true;// Mark the user as verified
     await user.save();
 
-    return res.send(`
-      <h2>Email Verified Successfully!</h2>
-      <p>Your email has been verified. You can now log in.</p>
-    `);
+    return res.redirect(`${process.env.VERIFY_REDIRECT_URL}/LoginMail`);
 
-    return res.status(200).json({ message: "Email verified successfully!", success: true });
   } catch (error) {
     console.error("Error in email verification", error);
     return res.status(500).json({ message: "Internal server error", success: false });
