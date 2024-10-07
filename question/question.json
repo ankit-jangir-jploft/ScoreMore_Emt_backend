@@ -1,195 +1,173 @@
 [
-    {
-      "id": "q1",
-      "question": "What is the primary role of the heart?",
-      "options": {
-        "a": "Pump blood",
-        "b": "Filter blood",
-        "c": "Store oxygen",
-        "d": "Produce white blood cells"
-      },
-      "correctOption": "a",
-      "subject": "medical",
-      "level": "easy",
-      "explanation": "The heart pumps blood throughout the body.",
-      "tags": ["cardiology", "heart"],
-      "creatorId": "userId123",
-      "isActive": true,
-      "createdAt": "2024-10-02T12:00:00Z",
-      "updatedAt": "2024-10-02T12:00:00Z"
-    },
-    {
-      "id": "q2",
-      "question": "Which is the largest bone in the human body?",
-      "options": {
-        "a": "Femur",
-        "b": "Tibia",
-        "c": "Humerus",
-        "d": "Fibula"
-      },
-      "correctOption": "b",
-      "subject": "medical",
-      "level": "medium",
-      "explanation": "The femur is the largest bone in the human body.",
-      "tags": ["medical", "anatomy"],
-      "creatorId": "userId123",
-      "isActive": true,
-      "createdAt": "2024-10-02T12:00:00Z",
-      "updatedAt": "2024-10-02T12:00:00Z"
-    },
-    {
-      "id": "q3",
-      "question": "What is the standard technique for opening the airway in trauma patients?",
-      "options": {
-        "a": "Head-tilt, chin-lift",
-        "b": "Jaw-thrust maneuver",
-        "c": "Bag valve mask",
-        "d": "Nasopharyngeal airway"
-      },
-      "correctOption": "b",
-      "subject": "airway",
-      "level": "medium",
-      "explanation": "The jaw-thrust maneuver is used to open the airway without manipulating the cervical spine.",
-      "tags": ["airway", "trauma"],
-      "creatorId": "userId123",
-      "isActive": true,
-      "createdAt": "2024-10-02T12:00:00Z",
-      "updatedAt": "2024-10-02T12:00:00Z"
-    },
-    {
-      "id": "q4",
-      "question": "How many chambers are there in the human heart?",
-      "options": {
-        "a": "2",
-        "b": "3",
-        "c": "4",
-        "d": "5"
-      },
-      "correctOption": "c",
-      "subject": "airway",
-      "level": "easy",
-      "explanation": "The human heart has four chambers: two atria and two ventricles.",
-      "tags": ["cardiology", "heart"],
-      "creatorId": "userId123",
-      "isActive": true,
-      "createdAt": "2024-10-02T12:00:00Z",
-      "updatedAt": "2024-10-02T12:00:00Z"
-    },
-    {
-      "id": "q5",
-      "question": "What is the proper technique for treating a burn victim?",
-      "options": {
-        "a": "Apply butter to the burn",
-        "b": "Cool the burn with water",
-        "c": "Break any blisters that form",
-        "d": "Cover the burn with cotton"
-      },
-      "correctOption": "b",
-      "subject": "trauma",
-      "level": "easy",
-      "explanation": "Cooling a burn with water helps to reduce tissue damage.",
-      "tags": ["trauma", "burns"],
-      "creatorId": "userId123",
-      "isActive": true,
-      "createdAt": "2024-10-02T12:00:00Z",
-      "updatedAt": "2024-10-02T12:00:00Z"
-    },
-    {
-      "id": "q6",
-      "question": "Which part of the brain is responsible for regulating breathing?",
-      "options": {
-        "a": "Cerebrum",
-        "b": "Medulla oblongata",
-        "c": "Cerebellum",
-        "d": "Frontal lobe"
-      },
-      "correctOption": "b",
-      "subject": "medical",
-      "level": "medium",
-      "explanation": "The medulla oblongata controls involuntary functions such as breathing.",
-      "tags": ["medical", "brain"],
-      "creatorId": "userId123",
-      "isActive": true,
-      "createdAt": "2024-10-02T12:00:00Z",
-      "updatedAt": "2024-10-02T12:00:00Z"
-    },
-    {
-      "id": "q7",
-      "question": "What is the appropriate first step in managing a patient with a suspected spinal injury?",
-      "options": {
-        "a": "Remove the helmet",
-        "b": "Stabilize the head and neck",
-        "c": "Perform CPR",
-        "d": "Apply a cervical collar"
-      },
-      "correctOption": "b",
-      "subject": "trauma",
-      "level": "medium",
-      "explanation": "The head and neck should be stabilized to prevent further spinal injury.",
-      "tags": ["trauma", "spinal injury"],
-      "creatorId": "userId123",
-      "isActive": true,
-      "createdAt": "2024-10-02T12:00:00Z",
-      "updatedAt": "2024-10-02T12:00:00Z"
-    },
-    {
-      "id": "q8",
-      "question": "Which of the following is a common cause of anaphylaxis?",
-      "options": {
-        "a": "Penicillin",
-        "b": "Aspirin",
-        "c": "Ibuprofen",
-        "d": "Acetaminophen"
-      },
-      "correctOption": "a",
-      "subject": "medical",
-      "level": "medium",
-      "explanation": "Penicillin is a common cause of severe allergic reactions, including anaphylaxis.",
-      "tags": ["medical", "allergy"],
-      "creatorId": "userId123",
-      "isActive": true,
-      "createdAt": "2024-10-02T12:00:00Z",
-      "updatedAt": "2024-10-02T12:00:00Z"
-    },
-    {
-      "id": "q9",
-      "question": "What does an AED do in cardiac arrest cases?",
-      "options": {
-        "a": "Delivers oxygen to the lungs",
-        "b": "Administers medication",
-        "c": "Delivers an electric shock",
-        "d": "Performs CPR"
-      },
-      "correctOption": "c",
-      "subject": "cardiology",
-      "level": "medium",
-      "explanation": "An AED delivers an electric shock to restore normal heart rhythm.",
-      "tags": ["cardiology", "AED"],
-      "creatorId": "userId123",
-      "isActive": true,
-      "createdAt": "2024-10-02T12:00:00Z",
-      "updatedAt": "2024-10-02T12:00:00Z"
-    },
-    {
-      "id": "q10",
-      "question": "What is the best way to control bleeding from an open wound?",
-      "options": {
-        "a": "Apply pressure",
-        "b": "Apply ice",
-        "c": "Elevate the wound",
-        "d": "Clean with alcohol"
-      },
-      "correctOption": "a",
-      "subject": "trauma",
-      "level": "easy",
-      "explanation": "Applying pressure is the most effective way to stop bleeding from a wound.",
-      "tags": ["trauma", "bleeding"],
-      "creatorId": "userId123",
-      "isActive": true,
-      "createdAt": "2024-10-02T12:00:00Z",
-      "updatedAt": "2024-10-02T12:00:00Z"
-    }
-  
- 
-  
+  {
+    "id": "66fd3ff5f62986bb88ddc6f1",
+    "question": "What is the primary role of the heart?",
+    "options": [
+      { "a": "Pump blood" },
+      { "b": "Filter blood" },
+      { "c": "Store oxygen" },
+      { "d": "Produce white blood cells" }
+    ],
+    "correctOption": "a",
+    "subject": "medical",
+    "level": "easy",
+    "explanation": "The heart pumps blood throughout the body.",
+    "tags": ["cardiology", "heart"],
+    "creatorId": "userId123",
+    "isActive": true,
+    "createdAt": "2024-10-02T12:00:00Z",
+    "updatedAt": "2024-10-02T12:00:00Z"
+  },
+  {
+    "id": "66fd3ff5f62986bb88ddc6e9",
+    "question": "Which is the largest bone in the human body?",
+    "options": [
+      { "a": "Femur" },
+      { "b": "Tibia" },
+      { "c": "Humerus" },
+      { "d": "Fibula" }
+    ],
+    "correctOption": "a",
+    "subject": "medical",
+    "level": "medium",
+    "explanation": "The femur is the largest bone in the human body.",
+    "tags": ["medical", "anatomy"],
+    "creatorId": "userId123",
+    "isActive": true,
+    "createdAt": "2024-10-02T12:00:00Z",
+    "updatedAt": "2024-10-02T12:00:00Z"
+  },
+  {
+    "id": "66fd3ff5f62986bb88ddc6e8",
+    "question": "What is the standard technique for opening the airway in trauma patients?",
+    "options": [
+      { "a": "Head-tilt, chin-lift" },
+      { "b": "Jaw-thrust maneuver" },
+      { "c": "Bag valve mask" },
+      { "d": "Nasopharyngeal airway" }
+    ],
+    "correctOption": "b",
+    "subject": "airway",
+    "level": "medium",
+    "explanation": "The jaw-thrust maneuver is used to open the airway without manipulating the cervical spine.",
+    "tags": ["airway", "trauma"],
+    "creatorId": "userId123",
+    "isActive": true,
+    "createdAt": "2024-10-02T12:00:00Z",
+    "updatedAt": "2024-10-02T12:00:00Z"
+  },
+  {
+    "id": "66fd3ff5f62986bb88ddc6e7",
+    "question": "How many chambers are there in the human heart?",
+    "options": [
+      { "a": "2" },
+      { "b": "3" },
+      { "c": "4" },
+      { "d": "5" }
+    ],
+    "correctOption": "c",
+    "subject": "airway",
+    "level": "easy",
+    "explanation": "The human heart has four chambers: two atria and two ventricles.",
+    "tags": ["cardiology", "heart"],
+    "creatorId": "userId123",
+    "isActive": true,
+    "createdAt": "2024-10-02T12:00:00Z",
+    "updatedAt": "2024-10-02T12:00:00Z"
+  },
+  {
+    "id": "66fd3ff5f62986bb88ddc6e6",
+    "question": "What is the proper technique for treating a burn victim?",
+    "options": [
+      { "a": "Apply butter to the burn" },
+      { "b": "Cool the burn with water" },
+      { "c": "Break any blisters that form" },
+      { "d": "Cover the burn with cotton" }
+    ],
+    "correctOption": "b",
+    "subject": "trauma",
+    "level": "easy",
+    "explanation": "Cooling a burn with water helps to reduce tissue damage.",
+    "tags": ["trauma", "burns"],
+    "creatorId": "userId123",
+    "isActive": true,
+    "createdAt": "2024-10-02T12:00:00Z",
+    "updatedAt": "2024-10-02T12:00:00Z"
+  },
+  {
+    "id": "66fd3ff5f62986bb88ddc6e5",
+    "question": "Which part of the brain is responsible for regulating breathing?",
+    "options": [
+      { "a": "Cerebrum" },
+      { "b": "Medulla oblongata" },
+      { "c": "Cerebellum" },
+      { "d": "Frontal lobe" }
+    ],
+    "correctOption": "b",
+    "subject": "medical",
+    "level": "medium",
+    "explanation": "The medulla oblongata controls involuntary functions such as breathing.",
+    "tags": ["medical", "brain"],
+    "creatorId": "userId123",
+    "isActive": true,
+    "createdAt": "2024-10-02T12:00:00Z",
+    "updatedAt": "2024-10-02T12:00:00Z"
+  },
+  {
+    "id": "66fd3ff5f62986bb88ddc6e4",
+    "question": "What is the appropriate first step in managing a patient with a suspected spinal injury?",
+    "options": [
+      { "a": "Remove the helmet" },
+      { "b": "Stabilize the head and neck" },
+      { "c": "Perform CPR" },
+      { "d": "Apply a cervical collar" }
+    ],
+    "correctOption": "b",
+    "subject": "trauma",
+    "level": "medium",
+    "explanation": "The head and neck should be stabilized to prevent further spinal injury.",
+    "tags": ["trauma", "spinal injury"],
+    "creatorId": "userId123",
+    "isActive": true,
+    "createdAt": "2024-10-02T12:00:00Z",
+    "updatedAt": "2024-10-02T12:00:00Z"
+  },
+  {
+    "id": "66fd3ff5f62986bb88ddc6e3",
+    "question": "Which of the following is a common cause of anaphylaxis?",
+    "options": [
+      { "a": "Penicillin" },
+      { "b": "Aspirin" },
+      { "c": "Ibuprofen" },
+      { "d": "Acetaminophen" }
+    ],
+    "correctOption": "a",
+    "subject": "medical",
+    "level": "medium",
+    "explanation": "Penicillin is a common cause of severe allergic reactions, including anaphylaxis.",
+    "tags": ["medical", "allergy"],
+    "creatorId": "userId123",
+    "isActive": true,
+    "createdAt": "2024-10-02T12:00:00Z",
+    "updatedAt": "2024-10-02T12:00:00Z"
+  },
+  {
+    "id": "66fd3ff5f62986bb88ddc6e2",
+    "question": "What does an AED do in cardiac arrest cases?",
+    "options": [
+      { "a": "Delivers oxygen to the lungs" },
+      { "b": "Administers medication" },
+      { "c": "Delivers an electric shock" },
+      { "d": "Performs CPR" }
+    ],
+    "correctOption": "c",
+    "subject": "cardiology",
+    "level": "medium",
+    "explanation": "An AED delivers an electric shock to restore normal heart rhythm.",
+    "tags": ["cardiology", "AED"],
+    "creatorId": "userId123",
+    "isActive": true,
+    "createdAt": "2024-10-02T12:00:00Z",
+    "updatedAt": "2024-10-02T12:00:00Z"
+  }
 ]
