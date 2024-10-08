@@ -628,7 +628,7 @@ exports.userQuestionData = async (req, res) => {
   try {
     console.log("req.body", req.body);
     console.log("req.body", req.body.testId)
-    const { userId, questionId, isCorrect, isMarked, timeTaken, level, isUsed, isOmitted, testId } = req.body;
+    const { userId, questionId, userSelectedOption,  isCorrect, isMarked, timeTaken, level, isUsed, isOmitted, testId } = req.body;
 
     // Validation: Ensure all required fields are provided
     if (!userId || !questionId || !testId || typeof isCorrect === 'undefined' || !timeTaken || !level) {
@@ -642,6 +642,7 @@ exports.userQuestionData = async (req, res) => {
       isCorrect,
       isMarked: isMarked || false, // Defaults to false if not provided
       timeTaken,
+      userSelectedOption,
       level,
       isUsed: isUsed || true, // Defaults to true if not provided
       isOmitted: isOmitted || false,
