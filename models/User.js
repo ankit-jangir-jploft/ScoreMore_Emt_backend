@@ -62,6 +62,10 @@ const userQuestionDataSchema = new mongoose.Schema({
         required: true,
         ref: 'Question' // Assuming you have a Question model
     },
+    userSelectedOption : {
+      type: String,
+      required: true
+    },
     isCorrect: {
         type: Boolean,
         required: true

@@ -2,6 +2,20 @@ const path = require('path');
 const { UserQuestionData } = require("../models/User");
 const questionsData = require(path.join(__dirname, '../question/question.json'));
 
+const Question = require('../models/question');
+const { default: mongoose } = require('mongoose');
+
+
+
+// Utility function to shuffle an array
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]]; // Swap elements
+  }
+  return array;
+}
+
 // Get all questions
 exports.getAllQuestions = (req, res) => {
   try {
@@ -23,7 +37,7 @@ exports.filterQuestions = async (req, res) => {
   console.log("req.body", req.body);
   
   // Destructure the request body to extract required parameters
-  const { userId, subjects = {}, level, numberOfQuestions, questionType = {}, cardType } = req.body;
+  const { userId, subjects = {}, level, numberOfQuestions, questionType = {}, cardType, timeLimit } = req.body;
   
   try {
     // Fetch previous question data for the user
@@ -67,11 +81,12 @@ exports.filterQuestions = async (req, res) => {
     const result = filteredQuestions.slice(0, Math.min(numberOfQuestions, filteredQuestions.length));
     console.log("Resulting Questions:", result);
 
-    // Send the response back to the client
+    // Send the response back to the client, including the timeLimit
     res.status(200).json({
       success: true,
       message: "Filtered questions retrieved successfully",
       data: result,
+      timeLimit: timeLimit // Include timeLimit in the response
     });
   } catch (err) {
     // Handle errors and send an appropriate response
@@ -84,11 +99,206 @@ exports.filterQuestions = async (req, res) => {
 };
 
 
-// Utility function to shuffle an array
-function shuffleArray(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]]; // Swap elements
+
+
+// Add Question API with validation checks
+
+exports.addQuestion = async (req, res) => {
+  try {
+    console.log("req.body", req.body);
+    const { question, options, correctOption, subject, level, explanation, tags, creatorId } = req.body;
+
+    // Validation checks
+    if (!question) {
+      return res.status(400).json({
+        success: false,
+        message: 'Question is required'
+      });
+    }
+
+    if (!options || typeof options !== 'object' || Object.keys(options).length !== 4) {
+      return res.status(400).json({
+        success: false,
+        message: 'Options must contain 4 choices (a, b, c, d)'
+      });
+    }
+
+    if (!correctOption || !['a', 'b', 'c', 'd'].includes(correctOption)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Correct option must be one of the following: a, b, c, or d'
+      });
+    }
+
+    if (!subject) {
+      return res.status(400).json({
+        success: false,
+        message: 'Subject is required'
+      });
+    }
+
+    if (!level || !['easy', 'medium', 'hard'].includes(level)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Level must be one of the following: easy, medium, or hard'
+      });
+    }
+
+    if (!explanation) {
+      return res.status(400).json({
+        success: false,
+        message: 'Explanation is required'
+      });
+    }
+
+    if (!creatorId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Creator ID is required'
+      });
+    }
+
+    // Additional checks for optional fields
+    if (tags && !Array.isArray(tags)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tags must be an array'
+      });
+    }
+
+    const existingQuestion = await Question.findOne({ question });
+    if (existingQuestion) {
+      return res.status(400).json({ message: "This question already exists" });
+    }
+
+    // Create the new question
+    const newQuestion = new Question({
+      question,
+      options,
+      correctOption,
+      subject,
+      level,
+      explanation,
+      tags: tags || [],
+      creatorId,
+      isActive: true,
+    });
+
+    // Save the question to the database
+    const savedQuestion = await newQuestion.save();
+
+    // Success response with the desired format
+    const responseData = {
+      id: savedQuestion._id.toString(), // Convert ObjectId to string
+      question: savedQuestion.question,
+      options: Array.from(savedQuestion.options.entries()).map(([key, value]) => ({ [key]: value })), // Format options
+      correctOption: savedQuestion.correctOption,
+      subject: savedQuestion.subject,
+      level: savedQuestion.level,
+      explanation: savedQuestion.explanation,
+      tags: savedQuestion.tags,
+      creatorId: savedQuestion.creatorId.toString(), // Assuming creatorId is an ObjectId
+      isActive: savedQuestion.isActive,
+      createdAt: savedQuestion.createdAt.toISOString(), // Ensure correct date format
+      updatedAt: savedQuestion.updatedAt.toISOString(), // Ensure correct date format
+    };
+
+    res.status(201).json({
+      success: true,
+      message: 'Question added successfully!',
+      data: responseData
+    });
+
+  } catch (error) {
+    // Error handling
+    res.status(500).json({
+      success: false,
+      message: 'Error adding question',
+      error: error.message
+    });
   }
-  return array;
-}
+};
+
+exports.updateQuestion = async (req, res) => {
+  const { creatorId, question, options, correctOption, subject, level, explanation, tags, isActive } = req.body;
+
+  // Create an object to hold the updates
+  const updates = {};
+
+  // Check which fields are present in the request body and add them to the updates object
+  if (creatorId) updates.creatorId = creatorId;
+  if (question) updates.question = question;
+  if (correctOption) updates.correctOption = correctOption;
+  if (subject) updates.subject = subject;
+  if (level) updates.level = level;
+  if (explanation) updates.explanation = explanation;
+  if (tags) updates.tags = tags;
+  if (typeof isActive === 'boolean') updates.isActive = isActive; // Check for boolean type
+
+  try {
+    // Fetch the existing question
+    const existingQuestion = await Question.findById(req.params.id);
+
+    if (!existingQuestion) {
+      return res.status(404).json({ message: "Question not found" });
+    }
+
+    // Merge existing options with new options
+    if (options) {
+      // Keep existing options and add/update new options
+      updates.options = {
+        ...existingQuestion.options, // Keep existing options
+        ...options // Add/update new options
+      };
+    }
+
+    const updatedQuestion = await Question.findByIdAndUpdate(
+      req.params.id, // The ID from the URL parameter
+      updates, // Only the fields that were provided will be updated
+      { new: true, runValidators: true } // Options to return the updated document and run validation
+    );
+
+    return res.status(200).json({
+      status: true,
+      message: "Question updated successfully!",
+      updatedQuestion,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Error updating question", error: error.message });
+  }
+};
+
+
+
+
+exports.deleteQuestion = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { creatorId } = req.body; // Assuming the creatorId is passed in the body for validation
+    const question = await Question.findById(id);
+
+    // Check if the question exists
+    if (!question) {
+      return res.status(404).json({ message: 'Question not found' });
+    }
+
+    // Check if the user is authorized to delete the question
+    if (question.creatorId !== creatorId) {
+      return res.status(403).json({ message: 'Unauthorized to delete this question' });
+    }
+
+    // Delete the question
+    await question.remove();
+
+    return res.status(200).json({ message: 'Question deleted successfully' });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+
+
+
+
