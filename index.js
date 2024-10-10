@@ -6,6 +6,7 @@ const cookieParser = require("cookie-parser");
 const path = require('path');
 const userRoutes = require("./routes/userRoutes");
 const questionRoutes = require("./routes/questionRoute");
+const examRoute = require("./routes/examRoute");
 const connectDb = require("./utils/db");
 require("dotenv").config();
 
@@ -33,6 +34,7 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 // Routes
 app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/question", questionRoutes);
+app.use("/api/v1/exam", examRoute);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

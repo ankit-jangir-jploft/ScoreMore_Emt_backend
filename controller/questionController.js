@@ -1,9 +1,12 @@
 const path = require('path');
 const { UserQuestionData } = require("../models/User");
-const questionsData = require(path.join(__dirname, '../question/question.json'));
+// const questionsData = require(path.join(__dirname, '../question/question.json'));
 
 const Question = require('../models/question');
+
 const { default: mongoose } = require('mongoose');
+const TestResult = require('../models/TestResult');
+const FilteredQuestion = require('../models/FilterQuestionTestData');
 
 
 
@@ -33,12 +36,114 @@ exports.getAllQuestions = (req, res) => {
   }
 };
 
+// exports.filterQuestions = async (req, res) => {
+//   console.log("req.body", req.body);
+
+//   // Destructure the request body to extract required parameters
+//   const { userId, subjects = {}, level, numberOfQuestions, questionType = {}, cardType, timeLimit } = req.body;
+
+//   try {
+//     // Fetch previous question data for the user
+//     const userPreviousQuestions = await UserQuestionData.find({ userId });
+//     console.log("userPrevious Questions---->", userPreviousQuestions);
+
+//     // Map user question data for easier lookup
+//     const userQuestionMap = userPreviousQuestions.reduce((acc, question) => {
+//       acc[question.questionId] = question; // Use questionId for lookup
+//       return acc;
+//     }, {});
+//     console.log("userQuestionMap", userQuestionMap);
+
+//     const question = await Question.find(); // Fetch the question data
+
+//     // Format the data
+//     const questionsData = question.map(question => {
+//       // Convert options from Map to an array of objects
+//       const formattedOptions = Array.from(question.options.entries()).map(([key, value]) => {
+//         return { [key]: value }; // Create an object for each option
+//       });
+
+//       return {
+//         _id: question._id,
+//         question: question.question,
+//         options: formattedOptions,
+//         correctOption: question.correctOption,
+//         subject: question.subject,
+//         level: question.level,
+//         explanation: question.explanation,
+//         tags: question.tags,
+//         creatorId: question.creatorId,
+//         isActive: question.isActive,
+//         createdAt: question.createdAt,
+//         updatedAt: question.updatedAt,
+//         __v: question.__v
+//       };
+//     });
+
+//     console.log("Formatted question data:", questionsData);
+
+//     // Filter questions based on subjects and levels
+//     let filteredQuestions = questionsData.filter((question) => {
+//       const subjectKeys = Object.keys(subjects).filter(key => subjects[key]);
+//       const matchesSubject = subjectKeys.length === 0 || subjectKeys.includes(question.subject);
+//       const matchesLevel = !level || question.level === level;
+//       return matchesSubject && matchesLevel && question.isActive;
+//     });
+
+//     console.log("Filtered Questions:", JSON.stringify(filteredQuestions, null, 2));
+
+//     // Further filter based on questionType (e.g., marked, incorrect, unused, etc.)
+//     if (Object.keys(questionType).length > 0) {
+//       filteredQuestions = filteredQuestions.filter((question) => {
+//         const userQuestion = userQuestionMap[question._id]; // Change to question._id for correct lookup
+
+//         const matchesMarked = questionType.marked ? userQuestion?.isMarked : true;
+//         const matchesIncorrect = questionType.incorrect ? !userQuestion?.isCorrect : true;
+//         const matchesUnused = questionType.unused ? !userQuestion?.isUsed : true; // Check if unused
+
+//         return matchesMarked && matchesIncorrect && matchesUnused;
+//       });
+//     }
+
+//     // Shuffle the filtered questions
+//     filteredQuestions = shuffleArray(filteredQuestions);
+//     console.log("Filtered Questions after shuffling:", filteredQuestions);
+
+//     // Slice the array to match the requested number of questions, ensuring it doesn't exceed the length
+//     const result = filteredQuestions.slice(0, Math.min(numberOfQuestions, filteredQuestions.length));
+//     console.log("Resulting Questions:", result);
+
+//     // Send the response back to the client, including the timeLimit
+//     res.status(200).json({
+//       success: true,
+//       message: "Filtered questions retrieved successfully",
+//       data: result,
+//       timeLimit: timeLimit // Include timeLimit in the response
+//     });
+//   } catch (err) {
+//     // Handle errors and send an appropriate response
+//     console.error("Error filtering questions:", err);
+//     res.status(500).json({
+//       success: false,
+//       message: "Internal server error",
+//     });
+//   }
+// };
+
+
+
+// Add Question API with validation checks
+
+// Your existing filterQuestions function
+
+
+
 exports.filterQuestions = async (req, res) => {
   console.log("req.body", req.body);
-  
+
   // Destructure the request body to extract required parameters
-  const { userId, subjects = {}, level, numberOfQuestions, questionType = {}, cardType, timeLimit } = req.body;
-  
+  const { userId, subjects = {}, level, numberOfQuestions, questionType = {}, cardType, timeLimit, testId } = req.body;
+
   try {
     // Fetch previous question data for the user
     const userPreviousQuestions = await UserQuestionData.find({ userId });
@@ -46,47 +151,84 @@ exports.filterQuestions = async (req, res) => {
 
     // Map user question data for easier lookup
     const userQuestionMap = userPreviousQuestions.reduce((acc, question) => {
-      acc[question._id] = question;
+      acc[question.questionId] = question; // Use questionId for lookup
       return acc;
     }, {});
     console.log("userQuestionMap", userQuestionMap);
 
+    const question = await Question.find(); // Fetch the question data
+
+    // Format the data
+    const questionsData = question.map(question => {
+      // Convert options from Map to an array of objects
+      const formattedOptions = Array.from(question.options.entries()).map(([key, value]) => {
+        return { [key]: value }; // Create an object for each option
+      });
+
+      return {
+        _id: question._id,
+        question: question.question,
+        options: formattedOptions,
+        correctOption: question.correctOption,
+        subject: question.subject,
+        level: question.level,
+        explanation: question.explanation,
+        tags: question.tags,
+        creatorId: question.creatorId,
+        isActive: question.isActive,
+        createdAt: question.createdAt,
+        updatedAt: question.updatedAt,
+        __v: question.__v
+      };
+    });
+
+    console.log("Formatted question data:", questionsData);
+
     // Filter questions based on subjects and levels
     let filteredQuestions = questionsData.filter((question) => {
-      const subjectKeys = Object.keys(subjects).filter(key => subjects[key]); 
+      const subjectKeys = Object.keys(subjects).filter(key => subjects[key]);
       const matchesSubject = subjectKeys.length === 0 || subjectKeys.includes(question.subject);
-      const matchesLevel = !level || question.level === level; 
+      const matchesLevel = !level || question.level === level;
       return matchesSubject && matchesLevel && question.isActive;
     });
-    
+
     console.log("Filtered Questions:", JSON.stringify(filteredQuestions, null, 2));
 
     // Further filter based on questionType (e.g., marked, incorrect, unused, etc.)
     if (Object.keys(questionType).length > 0) {
       filteredQuestions = filteredQuestions.filter((question) => {
-        const userQuestion = userQuestionMap[question.id];
+        const userQuestion = userQuestionMap[question._id]; // Change to question._id for correct lookup
+
         const matchesMarked = questionType.marked ? userQuestion?.isMarked : true;
         const matchesIncorrect = questionType.incorrect ? !userQuestion?.isCorrect : true;
-        const matchesUnused = questionType.unused ? !userQuestion?.isUsed : true;
+        const matchesUnused = questionType.unused ? !userQuestion?.isUsed : true; // Check if unused
 
         return matchesMarked && matchesIncorrect && matchesUnused;
       });
     }
 
     // Shuffle the filtered questions
-    filteredQuestions = shuffleArray(filteredQuestions); // No JSON.stringify here
+    filteredQuestions = shuffleArray(filteredQuestions);
     console.log("Filtered Questions after shuffling:", filteredQuestions);
 
     // Slice the array to match the requested number of questions, ensuring it doesn't exceed the length
     const result = filteredQuestions.slice(0, Math.min(numberOfQuestions, filteredQuestions.length));
     console.log("Resulting Questions:", result);
 
+    // Save filtered questions in the database
+    const filteredQuestionEntry = new FilteredQuestion({
+      testId, // Save the testId
+      questions: result,
+    });
+
+    await filteredQuestionEntry.save(); // Save to the database
+
     // Send the response back to the client, including the timeLimit
     res.status(200).json({
       success: true,
       message: "Filtered questions retrieved successfully",
       data: result,
-      timeLimit: timeLimit // Include timeLimit in the response
+      timeLimit: timeLimit, // Include timeLimit in the response
     });
   } catch (err) {
     // Handle errors and send an appropriate response
@@ -99,62 +241,67 @@ exports.filterQuestions = async (req, res) => {
 };
 
 
-
-
-// Add Question API with validation checks
-
 exports.addQuestion = async (req, res) => {
   try {
     console.log("req.body", req.body);
-    const { question, options, correctOption, subject, level, explanation, tags, creatorId } = req.body;
+    const {
+      question,
+      options,
+      correctOption,
+      subject,
+      level,
+      explanation,
+      tags,
+      creatorId,
+    } = req.body;
 
     // Validation checks
     if (!question) {
       return res.status(400).json({
         success: false,
-        message: 'Question is required'
+        message: 'Question is required',
       });
     }
 
     if (!options || typeof options !== 'object' || Object.keys(options).length !== 4) {
       return res.status(400).json({
         success: false,
-        message: 'Options must contain 4 choices (a, b, c, d)'
+        message: 'Options must contain 4 choices (a, b, c, d)',
       });
     }
 
     if (!correctOption || !['a', 'b', 'c', 'd'].includes(correctOption)) {
       return res.status(400).json({
         success: false,
-        message: 'Correct option must be one of the following: a, b, c, or d'
+        message: 'Correct option must be one of the following: a, b, c, or d',
       });
     }
 
     if (!subject) {
       return res.status(400).json({
         success: false,
-        message: 'Subject is required'
+        message: 'Subject is required',
       });
     }
 
     if (!level || !['easy', 'medium', 'hard'].includes(level)) {
       return res.status(400).json({
         success: false,
-        message: 'Level must be one of the following: easy, medium, or hard'
+        message: 'Level must be one of the following: easy, medium, or hard',
       });
     }
 
     if (!explanation) {
       return res.status(400).json({
         success: false,
-        message: 'Explanation is required'
+        message: 'Explanation is required',
       });
     }
 
     if (!creatorId) {
       return res.status(400).json({
         success: false,
-        message: 'Creator ID is required'
+        message: 'Creator ID is required',
       });
     }
 
@@ -162,13 +309,13 @@ exports.addQuestion = async (req, res) => {
     if (tags && !Array.isArray(tags)) {
       return res.status(400).json({
         success: false,
-        message: 'Tags must be an array'
+        message: 'Tags must be an array',
       });
     }
 
     const existingQuestion = await Question.findOne({ question });
     if (existingQuestion) {
-      return res.status(400).json({ message: "This question already exists" });
+      return res.status(400).json({ success: false, message: "This question already exists" });
     }
 
     // Create the new question
@@ -187,17 +334,22 @@ exports.addQuestion = async (req, res) => {
     // Save the question to the database
     const savedQuestion = await newQuestion.save();
 
+    // Format options correctly
+    const formattedOptions = Array.from(savedQuestion.options.entries()).map(([key, value]) => {
+      return { [key]: value };
+    });
+
     // Success response with the desired format
     const responseData = {
       id: savedQuestion._id.toString(), // Convert ObjectId to string
       question: savedQuestion.question,
-      options: Array.from(savedQuestion.options.entries()).map(([key, value]) => ({ [key]: value })), // Format options
+      options: formattedOptions, // Use formatted options
       correctOption: savedQuestion.correctOption,
       subject: savedQuestion.subject,
       level: savedQuestion.level,
       explanation: savedQuestion.explanation,
       tags: savedQuestion.tags,
-      creatorId: savedQuestion.creatorId.toString(), // Assuming creatorId is an ObjectId
+      creatorId: savedQuestion.creatorId.toString(), // Convert ObjectId to string
       isActive: savedQuestion.isActive,
       createdAt: savedQuestion.createdAt.toISOString(), // Ensure correct date format
       updatedAt: savedQuestion.updatedAt.toISOString(), // Ensure correct date format
@@ -206,18 +358,20 @@ exports.addQuestion = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Question added successfully!',
-      data: responseData
+      data: responseData,
     });
-
   } catch (error) {
     // Error handling
+    console.error("Error adding question:", error);
     res.status(500).json({
       success: false,
       message: 'Error adding question',
-      error: error.message
+      error: error.message,
     });
   }
 };
+
+
 
 exports.updateQuestion = async (req, res) => {
   const { creatorId, question, options, correctOption, subject, level, explanation, tags, isActive } = req.body;
@@ -268,8 +422,6 @@ exports.updateQuestion = async (req, res) => {
     return res.status(500).json({ message: "Error updating question", error: error.message });
   }
 };
-
-
 
 
 exports.deleteQuestion = async (req, res) => {

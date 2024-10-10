@@ -1,10 +1,14 @@
 const {User, UserQuestionData} = require("../models/User");
+
+const TestResult = require('../models/TestResult'); 
 const bcrypt = require("bcrypt");
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
 const nodeMailer = require("nodemailer");
 const crypto = require("crypto");
 const path = require('path');
+const { default: mongoose } = require("mongoose");
+
 
 exports.signup = async (req, res) => {
   try {
@@ -469,50 +473,7 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
-exports.editProfile = async (req, res) => {
-  try {
-    const { _id } = req.user; 
-    const { firstName, lastName, email, mobileNumber } = req.body; 
 
-    let profilePicture;
-
-    if (req.file) {
-      // Extract just the filename (not the full path)
-      profilePicture = path.basename(req.file.path);
-    }
-
-    const user = await User.findById(_id);
-    if (!user) {
-      return res.status(404).json({ message: "User not found", success: false });
-    }
-
-    // Check if the email is being changed and verify its uniqueness
-    if (email && email !== user.email) {
-      const existingEmail = await User.findOne({ email });
-      if (existingEmail) {
-        return res.status(400).json({ message: "Email already in use by another account", success: false });
-      }
-    }
-
-    // Update user details
-    user.firstName = firstName || user.firstName;
-    user.lastName = lastName || user.lastName;
-    user.email = email || user.email;
-    user.mobileNumber = mobileNumber || user.mobileNumber; 
-    user.profilePicture = profilePicture || user.profilePicture; // Update profile picture if new one is uploaded
-
-    await user.save();
-
-    return res.status(200).json({
-      message: "Profile updated successfully",
-      success: true,
-      data: user,
-    });
-  } catch (err) {
-    console.error("Error updating profile:", err);
-    return res.status(500).json({ message: "Internal server error", success: false });
-  }
-};
 
 
 exports.updateUserStatus = async (req, res) => {
@@ -593,24 +554,53 @@ exports.myProfile = async (req, res) => {
 
     // Verify the token
     const decoded = jwt.verify(token, process.env.SECRET_KEY);
+    const userId = decoded.userId; // Assuming userId is stored in the token
+
+    // Use aggregation to get user profile with test results
+    const userProfile = await User.aggregate([
+      { $match: { _id: new mongoose.Types.ObjectId(userId) } }, // Use 'new' keyword
+      {
+        $lookup: {
+          from: 'testresults', // The name of the TestResult collection
+          localField: '_id',
+          foreignField: 'userId',
+          as: 'testResults',
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          firstName: 1,
+          lastName: 1,
+          email: 1,
+          role: 1,
+          isEmailVerified: 1,
+          isActive: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          mobileNumber: 1,
+          profilePicture: 1, // Include profilePicture in the response
+          testResults: 1, // Include testResults in the response
+        },
+      },
+    ]);
     
-    // Find the user by ID
-    const user = await User.findById(decoded.userId); // Adjust if the ID is stored differently in the token
-    if (!user) {
+    console.log("userProfile", userProfile);
+
+    if (userProfile.length > 0) {
+      // Exclude sensitive data if necessary
+      const { password, otp, otpExpiration, ...userDetails } = userProfile[0];
+      
+      return res.status(200).json({
+        success: true,
+        user: userDetails, // Return user details with test results
+      });
+    } else {
       return res.status(404).json({
         message: "User not found!",
         success: false,
       });
     }
-
-    // Exclude sensitive data if necessary
-    const { password, otp, otpExpiration, ...userProfile } = user.toObject();
-
-    // Respond with the user profile
-    return res.status(200).json({
-      success: true,
-      user: userProfile,
-    });
   } catch (error) {
     console.error("Error fetching user profile:", error);
     return res.status(500).json({
@@ -620,6 +610,50 @@ exports.myProfile = async (req, res) => {
   }
 };
 
+exports.editProfile = async (req, res) => {
+  try {
+    const { _id } = req.user; 
+    const { firstName, lastName, email, mobileNumber } = req.body; 
+
+    let profilePicture;
+
+    if (req.file) {
+      // Extract just the filename (not the full path)
+      profilePicture = path.basename(req.file.path);
+    }
+
+    const user = await User.findById(_id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found", success: false });
+    }
+
+    // Check if the email is being changed and verify its uniqueness
+    if (email && email !== user.email) {
+      const existingEmail = await User.findOne({ email });
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email already in use by another account", success: false });
+      }
+    }
+
+    // Update user details
+    user.firstName = firstName || user.firstName;
+    user.lastName = lastName || user.lastName;
+    user.email = email || user.email;
+    user.mobileNumber = mobileNumber || user.mobileNumber; 
+    user.profilePicture = profilePicture || user.profilePicture; // Update profile picture if new one is uploaded
+
+    await user.save();
+
+    return res.status(200).json({
+      message: "Profile updated successfully",
+      success: true,
+      data: user,
+    });
+  } catch (err) {
+    console.error("Error updating profile:", err);
+    return res.status(500).json({ message: "Internal server error", success: false });
+  }
+};
 
 // save  user Question data
 
@@ -628,7 +662,7 @@ exports.userQuestionData = async (req, res) => {
   try {
     console.log("req.body", req.body);
     console.log("req.body", req.body.testId)
-    const { userId, questionId, userSelectedOption,  isCorrect, isMarked, timeTaken, level, isUsed, isOmitted, testId } = req.body;
+    const { userId, questionId, userSelectedOption="",  isCorrect, isMarked, timeTaken, level, isUsed, isOmitted, testId } = req.body;
 
     // Validation: Ensure all required fields are provided
     if (!userId || !questionId || !testId || typeof isCorrect === 'undefined' || !timeTaken || !level) {
@@ -642,7 +676,7 @@ exports.userQuestionData = async (req, res) => {
       isCorrect,
       isMarked: isMarked || false, // Defaults to false if not provided
       timeTaken,
-      userSelectedOption,
+      userSelectedOption : userSelectedOption || " ",
       level,
       isUsed: isUsed || true, // Defaults to true if not provided
       isOmitted: isOmitted || false,
@@ -659,6 +693,51 @@ exports.userQuestionData = async (req, res) => {
     return res.status(500).json({success : false , message: "Internal server error", success: false });
   }
 };
+
+exports.submitTestResults = async (req, res) => {
+  try {
+    console.log("test req.body", req.body);
+    const { userId, testId, totalCorrect, totalIncorrect, testType, totalNoOfQuestion, totalAttemptedQuestions } = req.body;
+
+    // Check if totalNoOfQuestion is greater than zero to avoid division by zero
+    if (totalNoOfQuestion <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Total number of questions must be greater than zero.",
+      });
+    };
+
+    const score = (totalCorrect / totalNoOfQuestion) * 100;
+
+    // Create a new test result
+    const newTestResult = new TestResult({
+      userId,
+      testId,
+      totalCorrect,
+      totalIncorrect,
+      totalNoOfQuestion,
+      testType,
+      totalAttemptedQuestions,
+      score,
+    });
+
+    // Save the test result to the database
+    await newTestResult.save();
+
+    return res.status(201).json({
+      success: true,
+      message: "Test results submitted successfully.",
+      testResult: newTestResult,
+    });
+  } catch (error) {
+    console.error("Error submitting test results:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+    });
+  }
+};
+
 
 
 
