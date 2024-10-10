@@ -8,6 +8,7 @@ const nodeMailer = require("nodemailer");
 const crypto = require("crypto");
 const path = require('path');
 const { default: mongoose } = require("mongoose");
+const FilteredQuestion = require("../models/FilterQuestionTestData");
 
 
 exports.signup = async (req, res) => {
@@ -697,7 +698,74 @@ exports.userQuestionData = async (req, res) => {
 exports.submitTestResults = async (req, res) => {
   try {
     console.log("test req.body", req.body);
-    const { userId, testId, totalCorrect, totalIncorrect, testType, totalNoOfQuestion, totalAttemptedQuestions } = req.body;
+    const { userId, testId, testType } = req.body;
+
+    // Fetch all questions related to the test
+    const filteredQuestions = await FilteredQuestion.find({ testId });
+    if (!filteredQuestions || filteredQuestions.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No questions found for the given testId.",
+      });
+    }
+    console.log("Total filtered questions: ", filteredQuestions);
+
+    // Fetch user's question data
+    const userQuestionData = await UserQuestionData.find({ userId, testId });
+    console.log("User question data: ", userQuestionData);
+
+    // Initialize counters
+    let totalCorrect = 0;
+    let totalIncorrect = 0;
+    let totalMarked = 0;
+    let totalOmitted = 0;
+    let totalAttemptedQuestions = 0;
+    let totalSkippedQuestions = 0;
+
+    // Create a map to easily access user answers by question ID
+    const userAnswersMap = {};
+    userQuestionData.forEach((answer) => {
+      userAnswersMap[answer.questionId.toString()] = answer;
+    });
+
+    // Calculate the results by comparing filtered questions and user answers
+    filteredQuestions.forEach((testQuestion) => {
+      testQuestion.questions.forEach((question) => {
+        const userAnswer = userAnswersMap[question._id.toString()];
+        console.log("User Answer: ", userAnswer);
+
+        if (userAnswer) {
+          // If the question was attempted
+          totalAttemptedQuestions++;
+
+          // Check if the answer was correct or incorrect
+          if (userAnswer.isCorrect) {
+            totalCorrect++;
+          } else {
+            totalIncorrect++;
+          }
+
+          // Check if the question was marked
+          if (userAnswer.isMarked) {
+            totalMarked++;
+          }
+
+          // Check if the question was omitted
+          if (userAnswer.isOmitted) {
+            totalOmitted++;
+          }
+        }
+      });
+    });
+
+    // Total number of questions
+    const totalNoOfQuestion = filteredQuestions.reduce(
+      (total, item) => total + item.questions.length,
+      0
+    );
+
+    // Total skipped questions calculation
+    totalSkippedQuestions = totalNoOfQuestion - totalAttemptedQuestions;
 
     // Check if totalNoOfQuestion is greater than zero to avoid division by zero
     if (totalNoOfQuestion <= 0) {
@@ -705,21 +773,26 @@ exports.submitTestResults = async (req, res) => {
         success: false,
         message: "Total number of questions must be greater than zero.",
       });
-    };
+    }
 
+    // Calculate score
     const score = (totalCorrect / totalNoOfQuestion) * 100;
 
-    // Create a new test result
+    // Create a new test result object
     const newTestResult = new TestResult({
       userId,
       testId,
       totalCorrect,
       totalIncorrect,
       totalNoOfQuestion,
+      totalSkippedQuestions,
       testType,
       totalAttemptedQuestions,
+      totalMarkedQuestions: totalMarked,
+      totalOmittedQuestions: totalOmitted,
       score,
     });
+    console.log("New test result: ", newTestResult);
 
     // Save the test result to the database
     await newTestResult.save();
@@ -737,6 +810,9 @@ exports.submitTestResults = async (req, res) => {
     });
   }
 };
+
+
+
 
 
 

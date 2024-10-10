@@ -38,7 +38,7 @@ exports.examRecord = async (req, res) => {
         const mergedData = findAllTestQuestion.map(testQuestion => {
             const questionDetails = testQuestion.questions.map(question => {
                 const userAnswer = userAnswersMap[question._id.toString()];
-                
+
                 return {
                     questionId: question._id,
                     question: question.question,
