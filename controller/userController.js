@@ -87,7 +87,7 @@ exports.signup = async (req, res) => {
 
     return res.status(201).json({
       message: "otp send on your ragistered mail id",
-      success: true,
+      success: success,
     });
   } catch (err) {
     console.log("Error in registration", err);
@@ -357,6 +357,72 @@ exports.verifyOTP = async (req, res) => {
   }
 };
 
+// social login 
+
+
+
+exports.socialLogin = async (req, res) => {
+  try {
+    const { email, socialId, firstName, lastName, registrationType } = req.body;
+
+    // Check if user exists with the given email and socialId
+    let user = await User.findOne({ email, socialId, isDeleted: false });
+    console.log("user", user);
+
+    // Check if the user is blocked
+    if (user?.isBlocked) {
+      return res.status(201).json({ status: 201, message: "User Blocked" });
+    }
+
+    // User found, generate a token
+    if (user) {
+      const tokenData = { userId: user._id };
+      const token = jwt.sign(tokenData, process.env.SECRET_KEY);
+
+      return res.status(200).json({
+        status: 200,
+        message: "Login Successfully",
+        data: user,
+        token: token,
+        LastStep: user.CompleteSteps,
+      });
+    }
+
+    // User not found, create a new one
+    let newUser = new User({
+      email,
+      socialId,
+      firstName,
+      lastName,
+      registrationType,
+    });
+    console.log("newuser", newUser)
+
+    // Save new user to the database
+    await newUser.save();
+
+    console.log("it hits");
+
+    // Generate token for the new user
+    const tokenData = { userId: user._id };
+    const token = jwt.sign(tokenData, process.env.SECRET_KEY);
+
+    return res.status(201).json({
+      success: true,
+      message: "User created successfully",
+      data: newUser,
+      token: token,
+    });
+    
+  } catch (error) {
+    console.error("Error in social login:", error);
+    return res.status(500).json({
+      message: "Internal server error",
+      success: false,
+    });
+  }
+};
+
 
 //forgot password
 
@@ -557,9 +623,9 @@ exports.myProfile = async (req, res) => {
     const decoded = jwt.verify(token, process.env.SECRET_KEY);
     const userId = decoded.userId; // Assuming userId is stored in the token
 
-    // Use aggregation to get user profile with test results
+    // Use aggregation to get user profile with sorted test results
     const userProfile = await User.aggregate([
-      { $match: { _id: new mongoose.Types.ObjectId(userId) } }, // Use 'new' keyword
+      { $match: { _id: new mongoose.Types.ObjectId(userId) } }, // Match user by ID
       {
         $lookup: {
           from: 'testresults', // The name of the TestResult collection
@@ -568,24 +634,26 @@ exports.myProfile = async (req, res) => {
           as: 'testResults',
         },
       },
+      { $unwind: { path: '$testResults', preserveNullAndEmptyArrays: true } }, // Flatten testResults array
+      { $sort: { 'testResults.createdAt': -1 } }, // Sort test results by 'date' field in descending order
       {
-        $project: {
-          _id: 1,
-          firstName: 1,
-          lastName: 1,
-          email: 1,
-          role: 1,
-          isEmailVerified: 1,
-          isActive: 1,
-          createdAt: 1,
-          updatedAt: 1,
-          mobileNumber: 1,
-          profilePicture: 1, // Include profilePicture in the response
-          testResults: 1, // Include testResults in the response
+        $group: {
+          _id: '$_id',
+          firstName: { $first: '$firstName' },
+          lastName: { $first: '$lastName' },
+          email: { $first: '$email' },
+          role: { $first: '$role' },
+          isEmailVerified: { $first: '$isEmailVerified' },
+          isActive: { $first: '$isActive' },
+          createdAt: { $first: '$createdAt' },
+          updatedAt: { $first: '$updatedAt' },
+          mobileNumber: { $first: '$mobileNumber' },
+          profilePicture: { $first: '$profilePicture' },
+          testResults: { $push: '$testResults' }, // Rebuild the sorted testResults array
         },
       },
     ]);
-    
+
     console.log("userProfile", userProfile);
 
     if (userProfile.length > 0) {
@@ -594,7 +662,7 @@ exports.myProfile = async (req, res) => {
       
       return res.status(200).json({
         success: true,
-        user: userDetails, // Return user details with test results
+        user: userDetails, // Return user details with sorted test results
       });
     } else {
       return res.status(404).json({
@@ -610,6 +678,7 @@ exports.myProfile = async (req, res) => {
     });
   }
 };
+
 
 exports.editProfile = async (req, res) => {
   try {
@@ -803,13 +872,160 @@ exports.submitTestResults = async (req, res) => {
       testResult: newTestResult,
     });
   } catch (error) {
-    console.error("Error submitting test results:", error);
+   
+  }
+};
+
+exports.allExamRecord = async (req, res) => {
+  try {
+    // Extracting userId from the request body
+    const { userId } = req.body;
+    console.log("User ID:", userId);
+
+    // Check if the user has any question data
+    const userQuestions = await UserQuestionData.find({ userId }).populate('questionId');
+    console.log("User Questions Found:", userQuestions);
+
+    if (userQuestions.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No question data found for this user.",
+      });
+    }
+
+    // Aggregation pipeline to get overall statistics
+    const overallStats = await UserQuestionData.aggregate([
+      {
+        $match: { userId: new mongoose.Types.ObjectId(userId) },
+      },
+      {
+        $group: {
+          _id: "$questionId", // Group by questionId to get unique questions
+          isCorrect: { $last: "$isCorrect" }, // Get the last submission for correctness
+        },
+      },
+      {
+        $group: {
+          _id: null, // Grouping all records together
+          totalUniqueQuestions: { $sum: 1 }, // Count unique question IDs
+          totalCorrectQuestions: {
+            $sum: { $cond: [{ $eq: ["$isCorrect", true] }, 1, 0] },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          totalUniqueQuestions: 1,
+          totalCorrectQuestions: 1,
+          percentage: {
+            $round: [
+              { $multiply: [{ $divide: ["$totalCorrectQuestions", "$totalUniqueQuestions"] }, 100] }, 2
+            ],
+          },
+        },
+      },
+    ]);
+
+    console.log("Overall Stats Result:", overallStats);
+
+    // Aggregation pipeline for subject insights
+    const subjectInsights = await UserQuestionData.aggregate([
+      {
+        $match: { userId: new mongoose.Types.ObjectId(userId) },
+      },
+      {
+        $group: {
+          _id: "$questionId", // Group by questionId to get unique questions
+          isCorrect: { $last: "$isCorrect" }, // Get the last submission for correctness
+        },
+      },
+      {
+        $lookup: {
+          from: 'questions', // The collection name that contains your questions
+          localField: '_id',
+          foreignField: '_id',
+          as: 'questionDetails',
+        },
+      },
+      {
+        $unwind: '$questionDetails', // Unwind the joined array to flatten the results
+      },
+      {
+        $group: {
+          _id: { subject: '$questionDetails.subject', isCorrect: '$isCorrect' }, // Use questionDetails to access subject
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $group: {
+          _id: '$_id.subject',
+          correct: {
+            $sum: { $cond: [{ $eq: ['$_id.isCorrect', true] }, '$count', 0] },
+          },
+          total: {
+            $sum: '$count',
+          },
+        },
+      },
+      {
+        $project: {
+          subject: '$_id',
+          correctAnswered: '$correct',
+          totalAnswered: '$total',
+          percentage: {
+            $round: [
+              { $multiply: [{ $divide: ['$correct', '$total'] }, 100] }, 2
+            ],
+          },
+        },
+      },
+    ]);
+
+    console.log("Subject Insights Result:", subjectInsights);
+
+    // Define the subjects you're interested in
+    const subjects = ["medical", "airway", "cardiology", "trauma", "emsOperations"];
+
+    // Format subject insights data to include all subjects
+    const subjectDataFormatted = subjects.map(subject => {
+      const insight = subjectInsights.find(i => i.subject === subject) || { correctAnswered: 0, totalAnswered: 0, percentage: 0 };
+      console.log(`Subject: ${subject}, Insight:`, insight); // Debugging log
+      return {
+        subject,
+        correctAnswered: insight.correctAnswered,
+        totalAnswered: insight.totalAnswered,
+        percentage: insight.percentage.toFixed(2), // Ensure two decimal places
+      };
+    });
+
+    // Formatting data for response
+    return res.status(200).json({
+      success: true,
+      message: "Question data retrieved successfully",
+      overallStats: overallStats[0] || { totalUniqueQuestions: 0, totalCorrectQuestions: 0, percentage: 0 },
+      subjectInsights: subjectDataFormatted,
+    });
+  } catch (error) {
+    console.error("Error retrieving exam records:", error);
     return res.status(500).json({
       success: false,
       message: "Internal server error.",
     });
   }
 };
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
