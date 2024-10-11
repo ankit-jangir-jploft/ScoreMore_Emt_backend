@@ -26,7 +26,7 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true,
+      // required: true,
     },
     profilePicture: {
       type: String,
@@ -44,6 +44,12 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    socialId: {
+      type : String
+    },
+    registrationType: {
+      type : String
+    }
   },
   {
     timestamps: true,
