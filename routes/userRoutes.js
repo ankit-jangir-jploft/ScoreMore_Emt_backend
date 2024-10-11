@@ -10,6 +10,7 @@ router.post("/signin", userController.signInWithPassword);
 router.post('/signin/otp', userController.signInWithOTP);
 router.post('/verify/otp', userController.verifyOTP);
 router.get("/verify-email", userController.verifyEmail);
+router.post("/socialLogin", userController.socialLogin)
 
 // My Profile
 router.get("/myProfile", isAuthenticated, userController.myProfile);
@@ -28,6 +29,8 @@ router.patch("/delete", isAuthenticated, userController.deactivateUser);
 
 // User question route
 router.post("/userQuestionData", isAuthenticated, userController.userQuestionData)
-router.post("/submitTestResult", userController.submitTestResults)
+router.post("/submitTestResult", userController.submitTestResults);
+
+router.post("/allExamRecord", userController.allExamRecord)
 
 module.exports = router;

@@ -3,7 +3,7 @@ const { UserQuestionData } = require("../models/User");
 
 exports.examRecord = async (req, res) => {
     try {
-        const { testId, userId } = req.body;
+        const { testId, userId, filter } = req.body; // Extract the filter parameter
 
         // Fetch all questions related to the test
         const findAllTestQuestion = await FilteredQuestion.find({ testId });
@@ -15,7 +15,7 @@ exports.examRecord = async (req, res) => {
 
         if (!findAllTestQuestion || findAllTestQuestion.length === 0) {
             return res.status(404).json({
-                status: false,
+                success: false,
                 message: "No exam records found for the given testId"
             });
         }
@@ -34,9 +34,31 @@ exports.examRecord = async (req, res) => {
             };
         });
 
-        // Merge both datasets
+        // Merge both datasets and apply filtering based on 'filter' parameter
         const mergedData = findAllTestQuestion.map(testQuestion => {
-            const questionDetails = testQuestion.questions.map(question => {
+            const filteredQuestions = testQuestion.questions.filter(question => {
+                const userAnswer = userAnswersMap[question._id.toString()];
+
+                // Apply filters based on the 'filter' parameter
+                if (filter === 'marked') {
+                    // Return only marked questions
+                    return userAnswer && userAnswer.isMarked === true;
+                } else if (filter === 'incorrect') {
+                    // Return only incorrect questions
+                    return userAnswer && userAnswer.isCorrect === false;
+                } else if (filter === 'correct') {
+                    // Return only correct questions
+                    return userAnswer && userAnswer.isCorrect === true;
+                }
+                // For 'all' or any other case, return all questions
+                return true;
+            });
+
+            // If no questions match the filter, skip this test entry
+            if (filteredQuestions.length === 0) return null;
+
+            // Map filtered questions to their details, along with user responses
+            const questionDetails = filteredQuestions.map(question => {
                 const userAnswer = userAnswersMap[question._id.toString()];
 
                 return {
@@ -60,22 +82,30 @@ exports.examRecord = async (req, res) => {
                 testId: testQuestion.testId,
                 questions: questionDetails,
             };
-        });
+        }).filter(Boolean); // Remove any null values
 
         console.log("Merged Data", mergedData);
 
+        if (mergedData.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "No exam records match the filter criteria"
+            });
+        }
+
         res.status(200).json({
-            status: true,
+            success: true,
             message: "Exam Record fetched Successfully!!",
-            data: mergedData // Includes the merged data
+            data: mergedData // Includes filtered data
         });
 
     } catch (err) {
         console.log("Error:", err);
         res.status(500).json({
-            status: false,
+            success: false,
             message: "Internal server error"
         });
     }
 };
+
 

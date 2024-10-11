@@ -356,7 +356,7 @@ exports.addQuestion = async (req, res) => {
     };
 
     res.status(201).json({
-      success: true,
+      success: success,
       message: 'Question added successfully!',
       data: responseData,
     });
@@ -413,7 +413,7 @@ exports.updateQuestion = async (req, res) => {
     );
 
     return res.status(200).json({
-      status: true,
+      success: true,
       message: "Question updated successfully!",
       updatedQuestion,
     });
