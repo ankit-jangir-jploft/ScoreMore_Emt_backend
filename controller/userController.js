@@ -771,6 +771,7 @@ exports.submitTestResults = async (req, res) => {
 
     // Fetch all questions related to the test
     const filteredQuestions = await FilteredQuestion.find({ testId });
+    console.log("filteredQuestions with testID ", filteredQuestions)
     if (!filteredQuestions || filteredQuestions.length === 0) {
       return res.status(404).json({
         success: false,
@@ -872,9 +873,46 @@ exports.submitTestResults = async (req, res) => {
       testResult: newTestResult,
     });
   } catch (error) {
-   
+    console.error("Error retrieving exam records:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+    });
   }
 };
+
+exports.lastSubmitQuestion = async (req, res) => {
+  try {
+    const { userId, testId } = req.body;
+
+    // Find the last submitted question by the user for the specified test
+    const lastQuestionsss = await UserQuestionData.find({ userId, testId });
+    console.log("lastQuestionsss", lastQuestionsss)
+    const lastQuestion = await UserQuestionData.find({ userId, testId })
+      .sort({ createdAt: -1 }) // Sort by createdAt in descending order
+      .exec(); // Use exec() to execute the query
+      console.log("Last submitted question:", lastQuestion);
+    if (lastQuestion) {
+     
+      return res.status(200).json({
+        success: true,
+        data: lastQuestion, // Return the found question
+      });
+    } else {
+      return res.status(404).json({
+        success: false,
+        message: "No question found for the provided userId and testId.",
+      });
+    }
+  } catch (error) {
+    console.error("Error retrieving last submitted question:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+    });
+  }
+};
+
 
 exports.allExamRecord = async (req, res) => {
   try {
