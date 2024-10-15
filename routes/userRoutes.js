@@ -30,6 +30,7 @@ router.patch("/delete", isAuthenticated, userController.deactivateUser);
 // User question route
 router.post("/userQuestionData", isAuthenticated, userController.userQuestionData)
 router.post("/submitTestResult", userController.submitTestResults);
+router.post("/lastSubmitQuestion", userController.lastSubmitQuestion)
 
 router.post("/allExamRecord", userController.allExamRecord)
 
