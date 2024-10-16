@@ -445,94 +445,101 @@ exports.filterQuestions = async (req, res) => {
         data: finalQuestions,
         timeLimit: timeLimit,
       });
-    } 
-    else{
-            const userPreviousQuestions = await UserQuestionData.find({ userId });
-            console.log("userPrevious Questions---->", userPreviousQuestions);
-      
-            // Map user question data for easier lookup
-            const userQuestionMap = userPreviousQuestions.reduce((acc, question) => {
-              acc[question.questionId] = question; // Use questionId for lookup
-              return acc;
-            }, {});
-            console.log("userQuestionMap", userQuestionMap);
-      
-            const question = await Question.find(); // Fetch the question data
-      
-            // Format the data
-            const questionsData = question.map(question => {
-              // Convert options from Map to an array of objects
-              const formattedOptions = Array.from(question.options.entries()).map(([key, value]) => {
-                return { [key]: value }; // Create an object for each option
-              });
-      
-              return {
-                _id: question._id,
-                question: question.question,
-                options: formattedOptions,
-                correctOption: question.correctOption,
-                subject: question.subject,
-                level: question.level,
-                explanation: question.explanation,
-                tags: question.tags,
-                creatorId: question.creatorId,
-                isActive: question.isActive,
-                createdAt: question.createdAt,
-                updatedAt: question.updatedAt,
-                __v: question.__v
-              };
-            });
-      
-            console.log("Formatted question data:", questionsData);
-      
-            // Filter questions based on subjects and levels
-            let filteredQuestions = questionsData.filter((question) => {
-              const subjectKeys = Object.keys(subjects).filter(key => subjects[key]);
-              const matchesSubject = subjectKeys.length === 0 || subjectKeys.includes(question.subject);
-              const matchesLevel = !level || question.level === level;
-              return matchesSubject && matchesLevel && question.isActive;
-            });
-      
-            console.log("Filtered Questions:", JSON.stringify(filteredQuestions, null, 2));
-      
-            // Further filter based on questionType (e.g., marked, incorrect, unused, etc.)
-            if (Object.keys(questionType).length > 0) {
-              filteredQuestions = filteredQuestions.filter((question) => {
-                const userQuestion = userQuestionMap[question._id]; // Change to question._id for correct lookup
-      
-                const matchesMarked = questionType.marked ? userQuestion?.isMarked : true;
-                const matchesIncorrect = questionType.incorrect ? !userQuestion?.isCorrect : true;
-                const matchesUnused = questionType.unused ? !userQuestion?.isUsed : true; // Check if unused
-      
-                return matchesMarked && matchesIncorrect && matchesUnused;
-              });
-            }
-      
-            // Shuffle the filtered questions
-            filteredQuestions = shuffleArray(filteredQuestions);
-            console.log("Filtered Questions after shuffling:", filteredQuestions);
-      
-            // Slice the array to match the requested number of questions, ensuring it doesn't exceed the length
-            const result = filteredQuestions.slice(0, Math.min(numberOfQuestions, filteredQuestions.length));
-            console.log("Resulting Questions:", result);
-      
-            // Save filtered questions in the database
-            const filteredQuestionEntry = new FilteredQuestion({
-              testId, // Save the testId
-              questions: result,
-            });
-      
-            await filteredQuestionEntry.save(); // Save to the database
-      
-            // Send the response back to the client, including the timeLimit
-            res.status(200).json({
-              success: true,
-              message: "Filtered questions retrieved successfully",
-              data: result,
-              timeLimit: timeLimit, // Include timeLimit in the response
-            });
-          }
-      
+    }
+    else {
+      const userPreviousQuestions = await UserQuestionData.find({ userId });
+      console.log("userPrevious Questions---->", userPreviousQuestions);
+
+      // Map user question data for easier lookup
+      const userQuestionMap = userPreviousQuestions.reduce((acc, question) => {
+        acc[question.questionId.toString()] = question; // Ensure we're using the questionId for lookup as a string
+        return acc;
+      }, {});
+      console.log("userQuestionMap", userQuestionMap);
+
+      const question = await Question.find(); // Fetch the question data
+
+      // Format the data
+      const questionsData = question.map(question => {
+        // Convert options from Map to an array of objects
+        const formattedOptions = Array.from(question.options.entries()).map(([key, value]) => {
+          return { [key]: value }; // Create an object for each option
+        });
+
+        return {
+          _id: question._id.toString(), // Ensure _id is treated as a string
+          question: question.question,
+          options: formattedOptions,
+          correctOption: question.correctOption,
+          subject: question.subject,
+          level: question.level,
+          explanation: question.explanation,
+          tags: question.tags,
+          creatorId: question.creatorId,
+          isActive: question.isActive,
+          createdAt: question.createdAt,
+          updatedAt: question.updatedAt,
+          __v: question.__v
+        };
+      });
+
+      // Filter questions based on subjects and levels
+      let filteredQuestions = questionsData.filter((question) => {
+        const subjectKeys = Object.keys(subjects).filter(key => subjects[key]);
+        const matchesSubject = subjectKeys.length === 0 || subjectKeys.includes(question.subject);
+        const matchesLevel = !level || question.level === level;
+        return matchesSubject && matchesLevel && question.isActive;
+      });
+
+      console.log("Filtered Questions after subject/level filter:", JSON.stringify(filteredQuestions, null, 2));
+
+      // Further filter based on questionType (e.g., marked, incorrect, unused, etc.)
+      if (Object.keys(questionType).length > 0) {
+        filteredQuestions = filteredQuestions.filter((question) => {
+          const userQuestion = userQuestionMap[question._id]; // Ensure question._id is used for lookup
+
+          // Filter for incorrectly answered questions
+          const matchesIncorrect = questionType.incorrect ? userQuestion && !userQuestion.isCorrect : true;
+
+          // Filter for marked questions
+          const matchesMarked = questionType.marked ? userQuestion && userQuestion.isMarked : true;
+
+          // Filter for unused questions
+          const matchesUnused = questionType.unused ? userQuestion && !userQuestion.isUsed : true;
+
+          // Only return the questions that meet all criteria
+          return matchesIncorrect && matchesMarked && matchesUnused;
+        });
+      }
+
+      console.log("Filtered Questions after questionType filter:", JSON.stringify(filteredQuestions, null, 2));
+
+      // Shuffle the filtered questions
+      filteredQuestions = shuffleArray(filteredQuestions);
+      console.log("Filtered Questions after shuffling:======", filteredQuestions);
+
+      // Slice the array to match the requested number of questions, ensuring it doesn't exceed the length
+      const result = filteredQuestions.slice(0, Math.min(numberOfQuestions, filteredQuestions.length));
+      console.log("Resulting Questions:", result);
+
+      // Save filtered questions in the database
+      const filteredQuestionEntry = new FilteredQuestion({
+        testId, // Save the testId
+        questions: result,
+      });
+
+      await filteredQuestionEntry.save(); // Save to the database
+
+      // Send the response back to the client, including the timeLimit
+      res.status(200).json({
+        success: true,
+        message: "Filtered questions retrieved successfully",
+        data: result,
+        timeLimit: timeLimit, // Include timeLimit in the response
+      });
+
+    }
+
   } catch (error) {
     console.error("Error filtering questions:", error);
     res.status(500).json({
