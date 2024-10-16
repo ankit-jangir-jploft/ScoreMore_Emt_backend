@@ -87,7 +87,7 @@ exports.signup = async (req, res) => {
 
     return res.status(201).json({
       message: "otp send on your ragistered mail id",
-      success: success,
+      success: true,
     });
   } catch (err) {
     console.log("Error in registration", err);
@@ -103,6 +103,7 @@ exports.verifyEmail = async (req, res) => {
 
   try {
     const user = await User.findById(token);
+    console.log("user",user)
     if (!user) {
       return res.status(404).json({ message: "User not found.", success: false });
     }
@@ -358,8 +359,6 @@ exports.verifyOTP = async (req, res) => {
 };
 
 // social login 
-
-
 
 exports.socialLogin = async (req, res) => {
   try {
