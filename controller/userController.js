@@ -763,6 +763,47 @@ exports.userQuestionData = async (req, res) => {
   }
 };
 
+exports.updateQuestionData = async (req, res) => {
+  try {
+    const { userId, questionId, testId, userSelectedOption, isCorrect, isMarked, timeTaken} = req.body;
+
+    // Validation: Ensure essential identifiers are provided
+    if (!userId || !questionId || !testId || !userSelectedOption) {
+      return res.status(400).json({ message: 'Missing required fields: userId, questionId, and testId', success: false });
+    }
+
+    // Find the existing document to retrieve current values
+    const existingData = await UserQuestionData.findOne({ userId, questionId, testId });
+
+    if (!existingData) {
+      return res.status(404).json({ message: 'Question data not found', success: false });
+    }
+
+    // Create an object to hold updates
+    const updateData = {
+      userSelectedOption: userSelectedOption !== undefined ? userSelectedOption : existingData.userSelectedOption,
+      isCorrect: isCorrect !== undefined ? isCorrect : existingData.isCorrect,
+      isMarked: isMarked !== undefined ? isMarked : existingData.isMarked,
+      timeTaken: timeTaken !== undefined ? timeTaken : existingData.timeTaken,
+      level: existingData.level,
+      isUsed: existingData.isUsed, // Keep the existing value for isUsed
+      isOmitted: existingData.isOmitted // Keep the existing value for isOmitted
+    };
+
+    // Update the document
+    const updatedData = await UserQuestionData.findOneAndUpdate(
+      { userId, questionId, testId }, // Find by userId, questionId, and testId
+      updateData,
+      { new: true } // Return the updated document
+    );
+
+    res.status(200).json({ success: true, message: 'Question data updated successfully', data: updatedData });
+  } catch (err) {
+    console.error("Error updating question data:", err);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
 exports.submitTestResults = async (req, res) => {
   try {
     console.log("test req.body", req.body);
@@ -879,6 +920,9 @@ exports.submitTestResults = async (req, res) => {
     });
   }
 };
+
+
+
 
 exports.lastSubmitQuestion = async (req, res) => {
   try {
