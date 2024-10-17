@@ -14,11 +14,10 @@ const FilteredQuestion = require('../models/FilterQuestionTestData');
 function shuffleArray(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]]; // Swap elements
+    [array[i], array[j]] = [array[j], array[i]];
   }
   return array;
 }
-
 // Get all questions
 exports.getAllQuestions = (req, res) => {
   try {
@@ -246,6 +245,310 @@ exports.getAllQuestions = (req, res) => {
 //   }
 // };
 
+// exports.filterQuestions = async (req, res) => {
+//   console.log("req.body", req.body);
+
+//   const {
+//     userId,
+//     subjects = {},
+//     level,
+//     numberOfQuestions,
+//     questionType = {},
+//     cardType,
+//     timeLimit,
+//     testId,
+//   } = req.body;
+
+//   try {
+//     if (cardType === "readinessTest") {
+//       console.log("It hits readiness");
+
+//       // Fetch all questions
+//       const question = await Question.find();
+
+//       const questionsData = question.map((q) => {
+//         const formattedOptions = Array.from(q.options.entries()).map(
+//           ([key, value]) => ({ [key]: value })
+//         );
+//         return {
+//           _id: q._id,
+//           question: q.question,
+//           options: formattedOptions,
+//           correctOption: q.correctOption,
+//           subject: q.subject,
+//           level: q.level,
+//           explanation: q.explanation,
+//           tags: q.tags,
+//           creatorId: q.creatorId,
+//           isActive: q.isActive,
+//           createdAt: q.createdAt,
+//           updatedAt: q.updatedAt,
+//           __v: q.__v,
+//         };
+//       });
+
+//       // Return all questions if number of questions requested is greater than available
+//       if (questionsData.length <= numberOfQuestions) {
+//         console.log("Not enough questions, returning all available questions.");
+//         return res.status(200).json({
+//           success: true,
+//           message:
+//             "All available questions retrieved as the total number is less than or equal to the requested amount",
+//           data: questionsData,
+//           timeLimit: timeLimit,
+//         });
+//       }
+
+//       // Subject distribution percentages for readiness test
+//       const subjectDistribution = {
+//         airway: { min: 18, max: 22 },
+//         cardiology: { min: 20, max: 24 },
+//         trauma: { min: 14, max: 18 },
+//         medical: { min: 27, max: 31 },
+//         emsOperations: { min: 10, max: 14 },
+//       };
+
+//       // Calculate subject questions count based on percentages
+//       const subjectQuestionsCount = {};
+//       Object.keys(subjectDistribution).forEach((subject) => {
+//         const min = subjectDistribution[subject].min;
+//         const max = subjectDistribution[subject].max;
+//         subjectQuestionsCount[subject] = Math.floor(
+//           Math.random() * (max - min + 1) + min
+//         );
+//       });
+
+//       const subjectKeys = Object.keys(subjectDistribution);
+
+//       // Function to calculate level distribution (easy, medium, hard)
+//       const difficultyDistribution = {
+//         easy: 34, // 30% easy
+//         medium: 33, // 50% medium
+//         hard: 33, // 20% hard
+//       };
+
+//       const calculateLevelQuestions = (totalSubjectQuestions) => {
+//         const easyCount = Math.floor((difficultyDistribution.easy / 100) * totalSubjectQuestions);
+//         const mediumCount = Math.floor((difficultyDistribution.medium / 100) * totalSubjectQuestions);
+//         const hardCount = Math.floor((difficultyDistribution.hard / 100) * totalSubjectQuestions);
+
+//         let remaining = totalSubjectQuestions - (easyCount + mediumCount + hardCount);
+
+//         // Distribute remaining questions to level with least questions
+//         if (remaining > 0) {
+//           if (easyCount <= mediumCount && easyCount <= hardCount) {
+//             return { easy: easyCount + remaining, medium: mediumCount, hard: hardCount };
+//           } else if (mediumCount <= easyCount && mediumCount <= hardCount) {
+//             return { easy: easyCount, medium: mediumCount + remaining, hard: hardCount };
+//           } else {
+//             return { easy: easyCount, medium: mediumCount, hard: hardCount + remaining };
+//           }
+//         }
+//         return { easy: easyCount, medium: mediumCount, hard: hardCount };
+//       };
+
+//       // Initialize final questions and handle subject-based filtering
+//       let finalQuestions = [];
+//       let remainingQuestionsToRedistribute = 0;
+
+//       for (const subject of subjectKeys) {
+//         const subjectFilteredQuestions = questionsData.filter(
+//           (q) => q.subject === subject && q.isActive
+//         );
+
+//         const requiredSubjectQuestions = subjectQuestionsCount[subject];
+//         console.log(`Subject: ${subject}, Required Questions: ${requiredSubjectQuestions}`);
+
+//         if (subjectFilteredQuestions.length < requiredSubjectQuestions) {
+//           remainingQuestionsToRedistribute += requiredSubjectQuestions - subjectFilteredQuestions.length;
+//           console.log(`Not enough questions for ${subject}, adjusting remaining questions for redistribution.`);
+//           finalQuestions = [...finalQuestions, ...subjectFilteredQuestions];
+//           continue; // Move to the next subject
+//         }
+
+//         const levelCount = calculateLevelQuestions(requiredSubjectQuestions);
+
+//         const easyQuestions = shuffleArray(
+//           subjectFilteredQuestions.filter((q) => q.level === "easy")
+//         ).slice(0, levelCount.easy);
+//         const mediumQuestions = shuffleArray(
+//           subjectFilteredQuestions.filter((q) => q.level === "medium")
+//         ).slice(0, levelCount.medium);
+//         const hardQuestions = shuffleArray(
+//           subjectFilteredQuestions.filter((q) => q.level === "hard")
+//         ).slice(0, levelCount.hard);
+
+//         const totalSelected = easyQuestions.length + mediumQuestions.length + hardQuestions.length;
+//         console.log(`Subject: ${subject}, Easy: ${easyQuestions.length}, Medium: ${mediumQuestions.length}, Hard: ${hardQuestions.length}`);
+
+//         // Adjust if total selected is less than required
+//         if (totalSelected < requiredSubjectQuestions) {
+//           const remainingQuestions = requiredSubjectQuestions - totalSelected;
+//           const additionalQuestions = shuffleArray(
+//             subjectFilteredQuestions.filter(
+//               (q) =>
+//                 !easyQuestions.includes(q) &&
+//                 !mediumQuestions.includes(q) &&
+//                 !hardQuestions.includes(q)
+//             )
+//           ).slice(0, remainingQuestions);
+
+//           finalQuestions = [
+//             ...finalQuestions,
+//             ...easyQuestions,
+//             ...mediumQuestions,
+//             ...hardQuestions,
+//             ...additionalQuestions,
+//           ];
+//         } else {
+//           finalQuestions = [
+//             ...finalQuestions,
+//             ...easyQuestions,
+//             ...mediumQuestions,
+//             ...hardQuestions,
+//           ];
+//         }
+//       }
+
+//       // Redistribute remaining questions across other subjects
+//       if (remainingQuestionsToRedistribute > 0) {
+//         console.log("Redistributing remaining questions across other subjects.");
+//         for (const subject of subjectKeys) {
+//           if (remainingQuestionsToRedistribute === 0) break;
+
+//           const subjectFilteredQuestions = questionsData.filter(
+//             (q) => q.subject === subject && q.isActive && !finalQuestions.includes(q)
+//           );
+
+//           const additionalQuestions = shuffleArray(subjectFilteredQuestions).slice(0, remainingQuestionsToRedistribute);
+//           remainingQuestionsToRedistribute -= additionalQuestions.length;
+//           finalQuestions = [...finalQuestions, ...additionalQuestions];
+//         }
+//       }
+
+//       // Shuffle final questions and adjust the total number to the requested amount
+//       finalQuestions = shuffleArray(finalQuestions).slice(0, numberOfQuestions);
+
+//       // Save filtered questions to the database
+//       const filteredQuestionEntry = new FilteredQuestion({
+//         testId,
+//         questions: finalQuestions,
+//       });
+
+//       await filteredQuestionEntry.save();
+
+//       // Send the response back to the client
+//       res.status(200).json({
+//         success: true,
+//         message: "Readiness test questions retrieved successfully",
+//         data: finalQuestions,
+//         timeLimit: timeLimit,
+//       });
+//     }
+//     else {
+//       const userPreviousQuestions = await UserQuestionData.find({ userId });
+//       console.log("userPrevious Questions---->", userPreviousQuestions);
+
+//       // Map user question data for easier lookup
+//       const userQuestionMap = userPreviousQuestions.reduce((acc, question) => {
+//         acc[question.questionId.toString()] = question; // Ensure we're using the questionId for lookup as a string
+//         return acc;
+//       }, {});
+//       console.log("userQuestionMap", userQuestionMap);
+
+//       const question = await Question.find(); // Fetch the question data
+
+//       // Format the data
+//       const questionsData = question.map(question => {
+//         // Convert options from Map to an array of objects
+//         const formattedOptions = Array.from(question.options.entries()).map(([key, value]) => {
+//           return { [key]: value }; // Create an object for each option
+//         });
+
+//         return {
+//           _id: question._id.toString(), // Ensure _id is treated as a string
+//           question: question.question,
+//           options: formattedOptions,
+//           correctOption: question.correctOption,
+//           subject: question.subject,
+//           level: question.level,
+//           explanation: question.explanation,
+//           tags: question.tags,
+//           creatorId: question.creatorId,
+//           isActive: question.isActive,
+//           createdAt: question.createdAt,
+//           updatedAt: question.updatedAt,
+//           __v: question.__v
+//         };
+//       });
+
+//       // Filter questions based on subjects and levels
+//       let filteredQuestions = questionsData.filter((question) => {
+//         const subjectKeys = Object.keys(subjects).filter(key => subjects[key]);
+//         const matchesSubject = subjectKeys.length === 0 || subjectKeys.includes(question.subject);
+//         const matchesLevel = !level || question.level === level;
+//         return matchesSubject && matchesLevel && question.isActive;
+//       });
+
+//       console.log("Filtered Questions after subject/level filter:", JSON.stringify(filteredQuestions, null, 2));
+
+//       // Further filter based on questionType (e.g., marked, incorrect, unused, etc.)
+//       if (Object.keys(questionType).length > 0) {
+//         filteredQuestions = filteredQuestions.filter((question) => {
+//           const userQuestion = userQuestionMap[question._id]; // Ensure question._id is used for lookup
+
+//           // Filter for incorrectly answered questions
+//           const matchesIncorrect = questionType.incorrect ? userQuestion && !userQuestion.isCorrect : true;
+
+//           // Filter for marked questions
+//           const matchesMarked = questionType.marked ? userQuestion && userQuestion.isMarked : true;
+
+//           // Filter for unused questions
+//           const matchesUnused = questionType.unused ? userQuestion && !userQuestion.isUsed : true;
+
+//           // Only return the questions that meet all criteria
+//           return matchesIncorrect && matchesMarked && matchesUnused;
+//         });
+//       }
+
+//       console.log("Filtered Questions after questionType filter:", JSON.stringify(filteredQuestions, null, 2));
+
+//       // Shuffle the filtered questions
+//       filteredQuestions = shuffleArray(filteredQuestions);
+//       console.log("Filtered Questions after shuffling:======", filteredQuestions);
+
+//       // Slice the array to match the requested number of questions, ensuring it doesn't exceed the length
+//       const result = filteredQuestions.slice(0, Math.min(numberOfQuestions, filteredQuestions.length));
+//       console.log("Resulting Questions:", result);
+
+//       // Save filtered questions in the database
+//       const filteredQuestionEntry = new FilteredQuestion({
+//         testId, // Save the testId
+//         questions: result,
+//       });
+
+//       await filteredQuestionEntry.save(); // Save to the database
+
+//       // Send the response back to the client, including the timeLimit
+//       res.status(200).json({
+//         success: true,
+//         message: "Filtered questions retrieved successfully",
+//         data: result,
+//         timeLimit: timeLimit, // Include timeLimit in the response
+//       });
+
+//     }
+
+//   } catch (error) {
+//     console.error("Error filtering questions:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "An error occurred while filtering questions",
+//       error: error.message,
+//     });
+//   }
+// };
+
 exports.filterQuestions = async (req, res) => {
   console.log("req.body", req.body);
 
@@ -288,36 +591,66 @@ exports.filterQuestions = async (req, res) => {
         };
       });
 
-      // Return all questions if number of questions requested is greater than available
+      // Return all questions if the number of requested questions is greater than available
       if (questionsData.length <= numberOfQuestions) {
         console.log("Not enough questions, returning all available questions.");
         return res.status(200).json({
           success: true,
-          message:
-            "All available questions retrieved as the total number is less than or equal to the requested amount",
+          message: "All available questions retrieved as the total number is less than or equal to the requested amount",
           data: questionsData,
           timeLimit: timeLimit,
         });
       }
 
       // Subject distribution percentages for readiness test
+      // Subject distribution percentages for readiness test
       const subjectDistribution = {
         airway: { min: 18, max: 22 },
-        cardiology: { min: 20, max: 24 },
-        trauma: { min: 14, max: 18 },
-        medical: { min: 27, max: 31 },
-        emsOperations: { min: 10, max: 14 },
+        cardiology: { min: 20, max: 26 },
+        trauma: { min: 15, max: 20 },
+        medical: { min: 27, max: 32 },
+        emsOperations: { min: 10, max: 15 },
       };
+
+      // Shuffle function
+      
 
       // Calculate subject questions count based on percentages
       const subjectQuestionsCount = {};
+      let totalQuestionsAssigned = 0;
+
+      // First pass: Assign minimum percentage of questions to each subject
       Object.keys(subjectDistribution).forEach((subject) => {
-        const min = subjectDistribution[subject].min;
-        const max = subjectDistribution[subject].max;
-        subjectQuestionsCount[subject] = Math.floor(
-          Math.random() * (max - min + 1) + min
-        );
+        const minPercentage = subjectDistribution[subject].min / 100;
+        const questionsForSubject = Math.floor(minPercentage * numberOfQuestions);
+        subjectQuestionsCount[subject] = questionsForSubject;
+        totalQuestionsAssigned += questionsForSubject;
       });
+
+      // Second pass: Distribute remaining questions within the range up to max percentage
+      console.log("totalQuestionsAssigned", totalQuestionsAssigned);
+      let remainingQuestions = numberOfQuestions - totalQuestionsAssigned;
+
+      // Shuffle the subjects for random distribution of remaining questions
+      const shuffledSubjects = shuffleArray(Object.keys(subjectDistribution));
+
+      // Distribute remaining questions randomly based on shuffled order
+      shuffledSubjects.forEach((subject) => {
+        if (remainingQuestions === 0) return;
+
+        const maxPercentage = subjectDistribution[subject].max / 100;
+        const maxQuestionsForSubject = Math.floor(maxPercentage * numberOfQuestions);
+        const additionalQuestions = Math.min(
+          remainingQuestions,
+          maxQuestionsForSubject - subjectQuestionsCount[subject]
+        );
+
+        subjectQuestionsCount[subject] += additionalQuestions;
+        remainingQuestions -= additionalQuestions;
+      });
+
+      console.log("Subject Questions Distribution:", subjectQuestionsCount);
+
 
       const subjectKeys = Object.keys(subjectDistribution);
 
@@ -329,24 +662,28 @@ exports.filterQuestions = async (req, res) => {
       };
 
       const calculateLevelQuestions = (totalSubjectQuestions) => {
-        const easyCount = Math.floor((difficultyDistribution.easy / 100) * totalSubjectQuestions);
-        const mediumCount = Math.floor((difficultyDistribution.medium / 100) * totalSubjectQuestions);
-        const hardCount = Math.floor((difficultyDistribution.hard / 100) * totalSubjectQuestions);
+        let easyCount = Math.floor((difficultyDistribution.easy / 100) * totalSubjectQuestions);
+        let mediumCount = Math.floor((difficultyDistribution.medium / 100) * totalSubjectQuestions);
+        let hardCount = Math.floor((difficultyDistribution.hard / 100) * totalSubjectQuestions);
 
+        // Dynamically adjust based on any remaining questions
         let remaining = totalSubjectQuestions - (easyCount + mediumCount + hardCount);
 
-        // Distribute remaining questions to level with least questions
-        if (remaining > 0) {
-          if (easyCount <= mediumCount && easyCount <= hardCount) {
-            return { easy: easyCount + remaining, medium: mediumCount, hard: hardCount };
-          } else if (mediumCount <= easyCount && mediumCount <= hardCount) {
-            return { easy: easyCount, medium: mediumCount + remaining, hard: hardCount };
+        // Distribute the remaining questions proportionally
+        while (remaining > 0) {
+          if (easyCount < mediumCount && easyCount < hardCount) {
+            easyCount += 1;
+          } else if (mediumCount < hardCount) {
+            mediumCount += 1;
           } else {
-            return { easy: easyCount, medium: mediumCount, hard: hardCount + remaining };
+            hardCount += 1;
           }
+          remaining--;
         }
+
         return { easy: easyCount, medium: mediumCount, hard: hardCount };
       };
+
 
       // Initialize final questions and handle subject-based filtering
       let finalQuestions = [];
@@ -427,8 +764,20 @@ exports.filterQuestions = async (req, res) => {
         }
       }
 
-      // Shuffle final questions and adjust the total number to the requested amount
+      // If still not enough questions, try to pick any active questions from the pool
+      if (finalQuestions.length < numberOfQuestions) {
+        const additionalQuestionsNeeded = numberOfQuestions - finalQuestions.length;
+        const availableQuestions = questionsData.filter(
+          (q) => q.isActive && !finalQuestions.includes(q)
+        );
+
+        const additionalQuestions = shuffleArray(availableQuestions).slice(0, additionalQuestionsNeeded);
+        finalQuestions = [...finalQuestions, ...additionalQuestions];
+      }
+
+      // Shuffle final questions and ensure exact number of requested questions
       finalQuestions = shuffleArray(finalQuestions).slice(0, numberOfQuestions);
+
 
       // Save filtered questions to the database
       const filteredQuestionEntry = new FilteredQuestion({
@@ -437,6 +786,7 @@ exports.filterQuestions = async (req, res) => {
       });
 
       await filteredQuestionEntry.save();
+      console.log("filteredleth", finalQuestions.length)
 
       // Send the response back to the client
       res.status(200).json({
@@ -446,111 +796,111 @@ exports.filterQuestions = async (req, res) => {
         timeLimit: timeLimit,
       });
     }
+
+
     else {
       const userPreviousQuestions = await UserQuestionData.find({ userId });
-      console.log("userPrevious Questions---->", userPreviousQuestions);
-
-      // Map user question data for easier lookup
-      const userQuestionMap = userPreviousQuestions.reduce((acc, question) => {
-        acc[question.questionId.toString()] = question; // Ensure we're using the questionId for lookup as a string
-        return acc;
-      }, {});
-      console.log("userQuestionMap", userQuestionMap);
-
-      const question = await Question.find(); // Fetch the question data
-
-      // Format the data
-      const questionsData = question.map(question => {
-        // Convert options from Map to an array of objects
-        const formattedOptions = Array.from(question.options.entries()).map(([key, value]) => {
-          return { [key]: value }; // Create an object for each option
-        });
-
-        return {
-          _id: question._id.toString(), // Ensure _id is treated as a string
-          question: question.question,
-          options: formattedOptions,
-          correctOption: question.correctOption,
-          subject: question.subject,
-          level: question.level,
-          explanation: question.explanation,
-          tags: question.tags,
-          creatorId: question.creatorId,
-          isActive: question.isActive,
-          createdAt: question.createdAt,
-          updatedAt: question.updatedAt,
-          __v: question.__v
-        };
-      });
-
-      // Filter questions based on subjects and levels
-      let filteredQuestions = questionsData.filter((question) => {
-        const subjectKeys = Object.keys(subjects).filter(key => subjects[key]);
-        const matchesSubject = subjectKeys.length === 0 || subjectKeys.includes(question.subject);
-        const matchesLevel = !level || question.level === level;
-        return matchesSubject && matchesLevel && question.isActive;
-      });
-
-      console.log("Filtered Questions after subject/level filter:", JSON.stringify(filteredQuestions, null, 2));
-
-      // Further filter based on questionType (e.g., marked, incorrect, unused, etc.)
-      if (Object.keys(questionType).length > 0) {
-        filteredQuestions = filteredQuestions.filter((question) => {
-          const userQuestion = userQuestionMap[question._id]; // Ensure question._id is used for lookup
-
-          // Filter for incorrectly answered questions
-          const matchesIncorrect = questionType.incorrect ? userQuestion && !userQuestion.isCorrect : true;
-
-          // Filter for marked questions
-          const matchesMarked = questionType.marked ? userQuestion && userQuestion.isMarked : true;
-
-          // Filter for unused questions
-          const matchesUnused = questionType.unused ? userQuestion && !userQuestion.isUsed : true;
-
-          // Only return the questions that meet all criteria
-          return matchesIncorrect && matchesMarked && matchesUnused;
-        });
-      }
-
-      console.log("Filtered Questions after questionType filter:", JSON.stringify(filteredQuestions, null, 2));
-
-      // Shuffle the filtered questions
-      filteredQuestions = shuffleArray(filteredQuestions);
-      console.log("Filtered Questions after shuffling:======", filteredQuestions);
-
-      // Slice the array to match the requested number of questions, ensuring it doesn't exceed the length
-      const result = filteredQuestions.slice(0, Math.min(numberOfQuestions, filteredQuestions.length));
-      console.log("Resulting Questions:", result);
-
-      // Save filtered questions in the database
-      const filteredQuestionEntry = new FilteredQuestion({
-        testId, // Save the testId
-        questions: result,
-      });
-
-      await filteredQuestionEntry.save(); // Save to the database
-
-      // Send the response back to the client, including the timeLimit
-      res.status(200).json({
-        success: true,
-        message: "Filtered questions retrieved successfully",
-        data: result,
-        timeLimit: timeLimit, // Include timeLimit in the response
-      });
-
-    }
-
-  } catch (error) {
-    console.error("Error filtering questions:", error);
-    res.status(500).json({
-      success: false,
-      message: "An error occurred while filtering questions",
-      error: error.message,
-    });
-  }
-};
-
-
+            console.log("userPrevious Questions---->", userPreviousQuestions);
+      
+            // Map user question data for easier lookup
+            const userQuestionMap = userPreviousQuestions.reduce((acc, question) => {
+              acc[question.questionId.toString()] = question; // Ensure we're using the questionId for lookup as a string
+              return acc;
+            }, {});
+            console.log("userQuestionMap", userQuestionMap);
+      
+            const question = await Question.find(); // Fetch the question data
+      
+            // Format the data
+            const questionsData = question.map(question => {
+              // Convert options from Map to an array of objects
+              const formattedOptions = Array.from(question.options.entries()).map(([key, value]) => {
+                return { [key]: value }; // Create an object for each option
+              });
+      
+              return {
+                _id: question._id.toString(), // Ensure _id is treated as a string
+                question: question.question,
+                options: formattedOptions,
+                correctOption: question.correctOption,
+                subject: question.subject,
+                level: question.level,
+                explanation: question.explanation,
+                tags: question.tags,
+                creatorId: question.creatorId,
+                isActive: question.isActive,
+                createdAt: question.createdAt,
+                updatedAt: question.updatedAt,
+                __v: question.__v
+              };
+            });
+      
+            // Filter questions based on subjects and levels
+            let filteredQuestions = questionsData.filter((question) => {
+              const subjectKeys = Object.keys(subjects).filter(key => subjects[key]);
+              const matchesSubject = subjectKeys.length === 0 || subjectKeys.includes(question.subject);
+              const matchesLevel = !level || question.level === level;
+              return matchesSubject && matchesLevel && question.isActive;
+            });
+      
+            console.log("Filtered Questions after subject/level filter:", JSON.stringify(filteredQuestions, null, 2));
+      
+            // Further filter based on questionType (e.g., marked, incorrect, unused, etc.)
+            if (Object.keys(questionType).length > 0) {
+              filteredQuestions = filteredQuestions.filter((question) => {
+                const userQuestion = userQuestionMap[question._id]; // Ensure question._id is used for lookup
+      
+                // Filter for incorrectly answered questions
+                const matchesIncorrect = questionType.incorrect ? userQuestion && !userQuestion.isCorrect : true;
+      
+                // Filter for marked questions
+                const matchesMarked = questionType.marked ? userQuestion && userQuestion.isMarked : true;
+      
+                // Filter for unused questions
+                const matchesUnused = questionType.unused ? userQuestion && !userQuestion.isUsed : true;
+      
+                // Only return the questions that meet all criteria
+                return matchesIncorrect && matchesMarked && matchesUnused;
+              });
+            }
+      
+            console.log("Filtered Questions after questionType filter:", JSON.stringify(filteredQuestions, null, 2));
+      
+            // Shuffle the filtered questions
+            filteredQuestions = shuffleArray(filteredQuestions);
+            console.log("Filtered Questions after shuffling:======", filteredQuestions);
+      
+            // Slice the array to match the requested number of questions, ensuring it doesn't exceed the length
+            const result = filteredQuestions.slice(0, Math.min(numberOfQuestions, filteredQuestions.length));
+            console.log("Resulting Questions:", result);
+      
+            // Save filtered questions in the database
+            const filteredQuestionEntry = new FilteredQuestion({
+              testId, // Save the testId
+              questions: result,
+            });
+      
+            await filteredQuestionEntry.save(); // Save to the database
+      
+            // Send the response back to the client, including the timeLimit
+            res.status(200).json({
+              success: true,
+              message: "Filtered questions retrieved successfully",
+              data: result,
+              timeLimit: timeLimit, // Include timeLimit in the response
+            });
+      
+          }
+      
+        } catch (error) {
+          console.error("Error filtering questions:", error);
+          res.status(500).json({
+            success: false,
+            message: "An error occurred while filtering questions",
+            error: error.message,
+          });
+        }
+      };
 
 
 
