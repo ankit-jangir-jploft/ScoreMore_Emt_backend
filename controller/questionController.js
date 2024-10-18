@@ -591,7 +591,7 @@ exports.filterQuestions = async (req, res) => {
         };
       });
 
-      // Return all questions if the number of requested questions is greater than available
+      // Return all questions if the number of requested questions is greater than availabl
       if (questionsData.length <= numberOfQuestions) {
         const filteredQuestionEntry = new FilteredQuestion({
           testId,
