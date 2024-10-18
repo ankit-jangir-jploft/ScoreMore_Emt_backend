@@ -761,38 +761,74 @@ exports.editProfile = async (req, res) => {
 exports.userQuestionData = async (req, res) => {
   try {
     console.log("req.body", req.body);
-    console.log("req.body", req.body.testId)
-    const { userId, questionId, userSelectedOption="",  isCorrect, isMarked, timeTaken, level, isUsed, isOmitted, testId } = req.body;
+    const { 
+      userId, 
+      questionId, 
+      userSelectedOption = "",  
+      isCorrect, 
+      isMarked, 
+      timeTaken, 
+      level, 
+      isUsed, 
+      isOmitted, 
+      testId 
+    } = req.body;
 
     // Validation: Ensure all required fields are provided
     if (!userId || !questionId || !testId || typeof isCorrect === 'undefined' || !timeTaken || !level) {
       return res.status(400).json({ message: 'Missing required fields', success: false });
     }
 
-    // Create new UserQuestionData document
-    const questionData = new UserQuestionData({
-      userId,
-      questionId,
-      isCorrect,
-      isMarked: isMarked || false, // Defaults to false if not provided
-      timeTaken,
-      userSelectedOption : userSelectedOption || " ",
-      level,
-      isUsed: isUsed || true, // Defaults to true if not provided
-      isOmitted: isOmitted || false,
-      testId 
+    // Check if the question already exists in the database
+    const existingQuestionData = await UserQuestionData.findOne({ 
+      userId, 
+      testId, 
+      questionId 
     });
-    console.log("questin data", questionData)
+    console.log("existingQuestionData", existingQuestionData)
 
-    // Save the data
-    await questionData.save();
+    if (existingQuestionData) {
+      // If the question exists, update it
+      existingQuestionData.isCorrect = isCorrect;
+      existingQuestionData.isMarked = isMarked || false;
+      existingQuestionData.timeTaken = timeTaken;
+      existingQuestionData.userSelectedOption = userSelectedOption || " ";
+      existingQuestionData.level = level;
+      existingQuestionData.isUsed = isUsed || true;
+      existingQuestionData.isOmitted = isOmitted || false;
 
-    res.status(201).json({success : true,  message: 'Question data saved successfully', data: questionData });
+      // Save the updated question data
+      await existingQuestionData.save();
+      console.log("existing data question save", existingQuestionData)
+
+      return res.status(200).json({ success: true, message: 'Question data updated successfully', data: existingQuestionData });
+    } else {
+      // If the question does not exist, create a new UserQuestionData document
+      const questionData = new UserQuestionData({
+        userId,
+        questionId,
+        isCorrect,
+        isMarked: isMarked || false, // Defaults to false if not provided
+        timeTaken,
+        userSelectedOption: userSelectedOption || " ",
+        level,
+        isUsed: isUsed || true, // Defaults to true if not provided
+        isOmitted: isOmitted || false,
+        testId 
+      });
+      console.log("question data", questionData);
+
+      // Save the new data
+      await questionData.save();
+
+      return res.status(201).json({ success: true, message: 'Question data saved successfully', data: questionData });
+    }
   } catch (err) {
     console.error("Error saving question data:", err);
-    return res.status(500).json({success : false , message: "Internal server error", success: false });
+    return res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+
 
 exports.updateQuestionData = async (req, res) => {
   try {

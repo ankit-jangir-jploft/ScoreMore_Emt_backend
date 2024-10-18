@@ -3,6 +3,7 @@ const { UserQuestionData } = require("../models/User");
 const TestResult = require('../models/TestResult');
 const jwt = require("jsonwebtoken");
 const moment = require("moment");
+const { trusted } = require("mongoose");
 
 exports.examRecord = async (req, res) => {
     try {
@@ -113,9 +114,10 @@ exports.todayDailyChallangeStatus = async (req, res) => {
         console.log("todayTests", todayTests)
 
         if (todayTests.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: "No tests found for today."
+            return res.status(200).json({
+                success: true,
+                message: "No tests found for today.",
+                data : []
             });
         }
 
