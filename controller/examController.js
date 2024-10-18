@@ -1,5 +1,8 @@
 const FilteredQuestion = require("../models/FilterQuestionTestData");
 const { UserQuestionData } = require("../models/User");
+const TestResult = require('../models/TestResult');
+const jwt = require("jsonwebtoken");
+const moment = require("moment");
 
 exports.examRecord = async (req, res) => {
     try {
@@ -70,6 +73,69 @@ exports.examRecord = async (req, res) => {
             data: mergedData // Includes the merged data
         });
 
+    } catch (err) {
+        console.log("Error:", err);
+        res.status(500).json({
+            success: false,
+            message: "Internal server error"
+        });
+    }
+};
+
+
+
+ // Adjust the path to your model if needed
+
+exports.todayDailyChallangeStatus = async (req, res) => {
+    try {
+        const token = req.headers.authorization.split(" ")[1];
+        console.log("token", token)
+        if (!token) {
+            return res.status(401).json({
+                message: "No token provided!",
+                success: false,
+            });
+        }
+
+        const decoded = jwt.verify(token, process.env.SECRET_KEY);
+        const userId = decoded.userId; 
+        console.log("userid ", userId)
+
+        // Get the start and end of the day in UTC
+        const startOfDay = moment().startOf('day').toDate();
+        const endOfDay = moment().endOf('day').toDate();
+
+        // Fetch today's test results for the user
+        const todayTests = await TestResult.find({
+            userId: userId,
+            createdAt: { $gte: startOfDay, $lte: endOfDay } // Filter by createdAt for today's tests
+        });
+        console.log("todayTests", todayTests)
+
+        if (todayTests.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "No tests found for today."
+            });
+        }
+
+        // Check if there is a dailyChallenge test
+        const dailyChallengeTest = todayTests.find(test => test.testType === "dailyChallenge");
+
+        if (dailyChallengeTest) {
+            return res.status(200).json({
+                success: true,
+                message: "Daily challenge has been completed.",
+                status: "done",
+                testResult: dailyChallengeTest
+            });
+        } else {
+            return res.status(200).json({
+                success: true,
+                message: "Daily challenge not yet completed.",
+                status: "not done"
+            });
+        }
     } catch (err) {
         console.log("Error:", err);
         res.status(500).json({
