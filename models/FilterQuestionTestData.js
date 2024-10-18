@@ -62,6 +62,8 @@ const FilteredQuestionSchema = new mongoose.Schema({
       },
     },
   ],
+}, {
+  timestamps : true
 });
 
 const FilteredQuestion = mongoose.model('FilteredQuestion', FilteredQuestionSchema);
