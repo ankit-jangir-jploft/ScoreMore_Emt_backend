@@ -233,7 +233,7 @@ exports.signInWithOTP = async (req, res) => {
     const otp = crypto.randomInt(100000, 999999).toString(); // 6-digit OTP
     const otpExpiration = Date.now() + 15 * 60 * 1000; // 15 minutes from now
 
-    console.log("Generated OTP:", otp);
+    console.log("Generated otpExpiration:", otpExpiration);
 
     // Store OTP and its expiration time in the user's document
     user.otp = otp;
@@ -317,6 +317,9 @@ exports.verifyOTP = async (req, res) => {
     }
 
     // Check if the OTP has expired
+    console.log("useerrrtrrr", user)
+    console.log("user.otpExpiration", user.otpExpiration);
+    console.log("Date.now", Date.now())
     if (Date.now() > user.otpExpiration) {
       return res.status(400).json({
         message: "OTP has expired!",
@@ -714,6 +717,7 @@ exports.deactivateUser = async (req, res) => {
 //   }
 // };
 
+
 exports.myProfile = async (req, res) => {
   try {
     // Extract token from the Authorization header
@@ -791,11 +795,45 @@ exports.myProfile = async (req, res) => {
     testResults.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     console.log("Sorted Test Results by createdAt:", testResults); // Log sorted test results
 
-    // Pagination logic
+    // Parse the limit as an integer
+    const parsedLimit = parseInt(limit, 10);
+
+    // Check if the limit is a valid number
+    if (isNaN(parsedLimit) || parsedLimit <= 0) {
+      return res.status(400).json({
+        message: "Invalid limit provided",
+        success: false,
+      });
+    }
+
+    // Parse the page as an integer
+    const parsedPage = parseInt(page, 10) || 1; // Default to page 1
+
+    // Ensure page is at least 1
+    if (parsedPage < 1) {
+      return res.status(400).json({
+        message: "Page number must be at least 1",
+        success: false,
+      });
+    }
+
+    // Calculate total pages
     const totalResults = testResults.length; // Total number of results
-    const totalPages = Math.ceil(totalResults / limit); // Calculate total pages
-    const offset = (page - 1) * limit; // Calculate offset
-    const paginatedResults = testResults.slice(offset, offset + limit); // Slice the results array
+    const totalPages = Math.ceil(totalResults / parsedLimit); // Calculate total pages
+
+    // Calculate offset
+    const offset = (parsedPage - 1) * parsedLimit; // Calculate offset
+
+    // Check if offset is within bounds
+    if (offset >= totalResults) {
+      return res.status(404).json({
+        message: "No results found for this page",
+        success: false,
+      });
+    }
+
+    // Slice the results array
+    const paginatedResults = testResults.slice(offset, offset + parsedLimit); // Slice the results array
 
     // Prepare the user profile response
     const userProfile = {
@@ -813,8 +851,8 @@ exports.myProfile = async (req, res) => {
       pagination: {
         totalResults,
         totalPages,
-        currentPage: Number(page),
-        resultsPerPage: Number(limit),
+        currentPage: parsedPage,
+        resultsPerPage: parsedLimit,
       },
     };
 
@@ -831,6 +869,7 @@ exports.myProfile = async (req, res) => {
     });
   }
 };
+
 
 
 
