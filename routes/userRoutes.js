@@ -4,7 +4,7 @@ const userController = require("../controller/userController");
 const isAuthenticated = require("../middleware/isAuthanticated");
 const { upload } = require("../middleware/multer");
 
-// Public routes aut
+// Publi
 router.post("/signup", userController.signup);
 router.post("/signin", userController.signInWithPassword);
 router.post('/signin/otp', userController.signInWithOTP);
