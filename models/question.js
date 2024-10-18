@@ -1,4 +1,4 @@
-// models/Question.js
+// models/Question.js ss
 const mongoose = require('mongoose');
 
 const questionSchema = new mongoose.Schema({
