@@ -4,6 +4,7 @@ const examController = require("../controller/examController");
 
 
 router.post("/examRecord", examController.examRecord)
+router.get("/todayDailyChallange", examController.todayDailyChallangeStatus)
 
 
 

@@ -13,7 +13,7 @@ router.get("/verify-email", userController.verifyEmail);
 router.post("/socialLogin", userController.socialLogin)
 
 // My Profile
-router.get("/myProfile", isAuthenticated, userController.myProfile);
+router.post("/myProfile", isAuthenticated, userController.myProfile);
 
 // Forgot Password and Reset Password 
 router.post('/forgotPassword', userController.forgotPassword);
@@ -26,7 +26,6 @@ router.patch("/delete", isAuthenticated, userController.deactivateUser);
 
 
 
-
 // User question route
 router.post("/userQuestionData", isAuthenticated, userController.userQuestionData);
 router.post("/updateQuestion", userController.updateQuestionData)
@@ -34,5 +33,6 @@ router.post("/submitTestResult", userController.submitTestResults);
 router.post("/lastSubmitQuestion", userController.lastSubmitQuestion)
 
 router.post("/allExamRecord", userController.allExamRecord)
+
 
 module.exports = router;

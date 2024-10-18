@@ -10,6 +10,8 @@ const path = require('path');
 const { default: mongoose } = require("mongoose");
 const FilteredQuestion = require("../models/FilterQuestionTestData");
 
+const moment = require("moment")
+
 
 exports.signup = async (req, res) => {
   try {
@@ -606,11 +608,12 @@ exports.deactivateUser = async (req, res) => {
   }
 };
 
-
 exports.myProfile = async (req, res) => {
   try {
     // Extract token from the Authorization header
-    const token = req.headers.authorization.split(" ")[1];
+    const token = req.headers.authorization?.split(" ")[1];
+    console.log("Token in myProfile:", token);
+
     if (!token) {
       return res.status(401).json({
         message: "No token provided!",
@@ -622,53 +625,76 @@ exports.myProfile = async (req, res) => {
     const decoded = jwt.verify(token, process.env.SECRET_KEY);
     const userId = decoded.userId; // Assuming userId is stored in the token
 
-    // Use aggregation to get user profile with sorted test results
-    const userProfile = await User.aggregate([
-      { $match: { _id: new mongoose.Types.ObjectId(userId) } }, // Match user by ID
-      {
-        $lookup: {
-          from: 'testresults', // The name of the TestResult collection
-          localField: '_id',
-          foreignField: 'userId',
-          as: 'testResults',
-        },
-      },
-      { $unwind: { path: '$testResults', preserveNullAndEmptyArrays: true } }, // Flatten testResults array
-      { $sort: { 'testResults.createdAt': -1 } }, // Sort test results by 'date' field in descending order
-      {
-        $group: {
-          _id: '$_id',
-          firstName: { $first: '$firstName' },
-          lastName: { $first: '$lastName' },
-          email: { $first: '$email' },
-          role: { $first: '$role' },
-          isEmailVerified: { $first: '$isEmailVerified' },
-          isActive: { $first: '$isActive' },
-          createdAt: { $first: '$createdAt' },
-          updatedAt: { $first: '$updatedAt' },
-          mobileNumber: { $first: '$mobileNumber' },
-          profilePicture: { $first: '$profilePicture' },
-          testResults: { $push: '$testResults' }, // Rebuild the sorted testResults array
-        },
-      },
-    ]);
+    // Log the user ID
+    console.log("Decoded User ID:", userId);
 
-    console.log("userProfile", userProfile);
+    // Extract filters from req.body
+    const { dateRange, testType } = req.body;
+    console.log("DateRange:", dateRange, "TestType:", testType);
 
-    if (userProfile.length > 0) {
-      // Exclude sensitive data if necessary
-      const { password, otp, otpExpiration, ...userDetails } = userProfile[0];
-      
-      return res.status(200).json({
-        success: true,
-        user: userDetails, // Return user details with sorted test results
-      });
-    } else {
+    // Find the user profile without aggregation
+    const user = await User.findById(userId).select('-password -otp -otpExpiration');
+    if (!user) {
       return res.status(404).json({
-        message: "User not found!",
+        message: "User not found",
         success: false,
       });
     }
+
+    // Find the user's test results
+    let testResults = await TestResult.find({ userId: userId }).lean();
+    console.log("Initial Test Results:", testResults); // Log initial test results
+
+    // Filter test results by date range if provided
+  // Filter test results by date range if provided
+if (dateRange?.from && dateRange?.to) {
+  const startDate = moment(dateRange.from).startOf('day').toDate();
+  const endDate = moment(dateRange.to).endOf('day').toDate(); // Covers the entire day
+
+  console.log("Start Date:", startDate);
+  console.log("End Date:", endDate);
+
+  testResults = testResults.filter(result => {
+    const testDate = moment(result.date, 'YYYY-MM-DD').toDate(); // Convert 'date' string to Date object
+    const isInRange = moment(testDate).isBetween(startDate, endDate, null, '[]'); // Include both start and end dates
+    console.log(`Test Result ID: ${result._id}, Date: ${testDate}, In Range: ${isInRange}`);
+    return isInRange;
+  });
+
+  console.log("Filtered Test Results by Date Range:", testResults); // Log filtered test results
+} else {
+  console.log("No date range provided; skipping date filtering.");
+}
+
+
+    // Filter test results by test type if provided
+    if (Array.isArray(testType) && testType.length > 0) {
+      testResults = testResults.filter(result => testType.includes(result.testType));
+      console.log("Filtered Test Results by Test Type:", testResults); // Log filtered test results
+    } else {
+      console.log("No test type provided; skipping test type filtering.");
+    }
+
+    // Prepare the user profile response
+    const userProfile = {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      role: user.role,
+      isEmailVerified: user.isEmailVerified,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      mobileNumber: user.mobileNumber,
+      profilePicture: user.profilePicture,
+      testResults: testResults,
+    };
+
+    return res.status(200).json({
+      success: true,
+      user: userProfile,
+    });
+
   } catch (error) {
     console.error("Error fetching user profile:", error);
     return res.status(500).json({
@@ -677,6 +703,11 @@ exports.myProfile = async (req, res) => {
     });
   }
 };
+
+
+
+
+
 
 
 exports.editProfile = async (req, res) => {

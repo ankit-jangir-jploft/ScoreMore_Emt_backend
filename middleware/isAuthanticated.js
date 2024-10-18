@@ -5,7 +5,9 @@ const { User } = require("../models/User");
 const isAuthenticated = async (req, res, next) => {
   try {
     // Retrieve the token from the Authorization header
-    const token = req.headers['authorization']?.split(' ')[1];
+    console.log("req.headers", req.headers)
+    const token = req.headers['authorization' || 'Authorization']?.split(' ')[1];
+    console.log("token in auth", token )
 
     // Check if the token is present
     if (!token) {
