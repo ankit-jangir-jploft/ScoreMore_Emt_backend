@@ -593,6 +593,13 @@ exports.filterQuestions = async (req, res) => {
 
       // Return all questions if the number of requested questions is greater than available
       if (questionsData.length <= numberOfQuestions) {
+        const filteredQuestionEntry = new FilteredQuestion({
+          testId,
+          questions: questionsData,
+        });
+  
+        await filteredQuestionEntry.save();
+        console.log("filteredleth", questionsData.length)
         console.log("Not enough questions, returning all available questions.");
         return res.status(200).json({
           success: true,
@@ -628,7 +635,7 @@ exports.filterQuestions = async (req, res) => {
       });
 
       // Second pass: Distribute remaining questions within the range up to max percentage
-      console.log("totalQuestionsAssigned", totalQuestionsAssigned);
+      // console.log("totalQuestionsAssigned", totalQuestionsAssigned);
       let remainingQuestions = numberOfQuestions - totalQuestionsAssigned;
 
       // Shuffle the subjects for random distribution of remaining questions
@@ -777,6 +784,7 @@ exports.filterQuestions = async (req, res) => {
 
       // Shuffle final questions and ensure exact number of requested questions
       finalQuestions = shuffleArray(finalQuestions).slice(0, numberOfQuestions);
+      console.log("finalQuestions finalQuestions", finalQuestions)
 
 
       // Save filtered questions to the database
