@@ -4,7 +4,8 @@ const examController = require("../controller/examController");
 
 
 router.post("/examRecord", examController.examRecord)
-router.get("/todayDailyChallange", examController.todayDailyChallangeStatus)
+router.get("/todayDailyChallange", examController.todayDailyChallangeStatus);
+router.post("/perOptionPercentage", examController.getPerOptionPercentage);
 
 
 

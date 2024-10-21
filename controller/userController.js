@@ -1,4 +1,5 @@
-const {User, UserQuestionData} = require("../models/User");
+const {User, UserQuestionData, Subscription} = require("../models/User");
+const Question = require("../models/question")
 
 const TestResult = require('../models/TestResult'); 
 const bcrypt = require("bcrypt");
@@ -825,12 +826,12 @@ exports.myProfile = async (req, res) => {
     const offset = (parsedPage - 1) * parsedLimit; // Calculate offset
 
     // Check if offset is within bounds
-    if (offset >= totalResults) {
-      return res.status(404).json({
-        message: "No results found for this page",
-        success: false,
-      });
-    }
+    // if (offset >= totalResults) {
+    //   return res.status(404).json({
+    //     message: "No results found for this page",
+    //     success: false,
+    //   });
+    // }
 
     // Slice the results array
     const paginatedResults = testResults.slice(offset, offset + parsedLimit); // Slice the results array
@@ -847,6 +848,7 @@ exports.myProfile = async (req, res) => {
       updatedAt: user.updatedAt,
       mobileNumber: user.mobileNumber,
       profilePicture: user.profilePicture,
+      subascriptionStatus : user.subscriptionStatus,
       testResults: paginatedResults,
       pagination: {
         totalResults,
@@ -965,7 +967,10 @@ exports.userQuestionData = async (req, res) => {
 
       // Save the updated question data
       await existingQuestionData.save();
-      console.log("existing data question save", existingQuestionData)
+      console.log("existing data question save", existingQuestionData);
+
+      // Update question percentages
+      await updateQuestionPercentages(questionId);
 
       return res.status(200).json({ success: true, message: 'Question data updated successfully', data: existingQuestionData });
     } else {
@@ -987,6 +992,9 @@ exports.userQuestionData = async (req, res) => {
       // Save the new data
       await questionData.save();
 
+      // Update question percentages
+      await updateQuestionPercentages(questionId);
+
       return res.status(201).json({ success: true, message: 'Question data saved successfully', data: questionData });
     }
   } catch (err) {
@@ -994,6 +1002,58 @@ exports.userQuestionData = async (req, res) => {
     return res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+
+// Function to update question percentages
+const updateQuestionPercentages = async (questionId) => {
+  // Fetch all user question data related to this question
+  const userQuestionData = await UserQuestionData.find({ questionId });
+
+  // Initialize counters for each option
+  let countA = 0, countB = 0, countC = 0, countD = 0;
+
+  // Count how many users selected each option
+  userQuestionData.forEach((data) => {
+    switch (data.userSelectedOption) {
+      case "a":
+        countA++;
+        break;
+      case "b":
+        countB++;
+        break;
+      case "c":
+        countC++;
+        break;
+      case "d":
+        countD++;
+        break;
+      default:
+        break;
+    }
+  });
+
+  // Calculate total responses
+  const totalResponses = countA + countB + countC + countD;
+
+ // Calculate percentage for each option and round to two decimal places
+ const percentageA = totalResponses ? Math.round((countA / totalResponses) * 100 * 100) / 100 : 0;
+ const percentageB = totalResponses ? Math.round((countB / totalResponses) * 100 * 100) / 100 : 0;
+ const percentageC = totalResponses ? Math.round((countC / totalResponses) * 100 * 100) / 100 : 0;
+ const percentageD = totalResponses ? Math.round((countD / totalResponses) * 100 * 100) / 100 : 0;
+
+  // Update the question with the new percentages
+  await Question.findByIdAndUpdate(
+    questionId,
+    {
+      optionAPercentage: percentageA,
+      optionBPercentage: percentageB,
+      optionCPercentage: percentageC,
+      optionDPercentage: percentageD,
+    },
+    { new: true } // Return the updated document
+  );
+};
+
+
 
 
 exports.updateQuestionData = async (req, res) => {
@@ -1330,6 +1390,109 @@ exports.allExamRecord = async (req, res) => {
 };
 
 
+exports.getSubscriptionDetails = async (req, res) => {
+  try {
+      const { id } = req.params; // Get userId from route parameters
+
+      // Find the user in the database by ID
+      const user = await User.findById(id);
+      if (!user) {
+          return res.status(404).json({
+              success: false,
+              message: "User not found",
+          });
+      }
+
+      // Find the latest subscription of the user
+      const subscription = await Subscription.findOne({ userId: id }).sort({ createdAt: -1 });
+      if (!subscription) {
+          return res.status(404).json({
+              success: false,
+              message: "No subscription found for this user",
+          });
+      }
+
+      // Calculate remaining days
+      const currentDate = new Date();
+      const expiresAt = new Date(subscription.expiresAt);
+      const remainingDays = Math.ceil((expiresAt - currentDate) / (1000 * 60 * 60 * 24)); // Days left
+
+      // Prepare the subscription details to return
+      const subscriptionDetails = {
+          subscriptionStatus: subscription.subscriptionStatus,
+          paymentAmount: subscription.paymentAmount,
+          currency: subscription.currency,
+          subscriptionPlan: subscription.subscriptionPlan,
+          startedAt: subscription.startedAt,
+          expiresAt: subscription.expiresAt,
+          remainingDays: remainingDays > 0 ? remainingDays : 0, // Ensure remainingDays doesn't go negative
+          paymentMethod: subscription.paymentMethod,
+          transactionId: subscription.transactionId,
+      };
+
+      return res.status(200).json({
+          success: true,
+          user: {
+              _id: user._id,
+              name: user.name,
+              email: user.email,
+              subscriptionId: subscription._id,
+          },
+          subscription: subscriptionDetails
+      });
+  } catch (error) {
+      console.error("Error retrieving subscription details:", error);
+      return res.status(500).json({
+          success: false,
+          message: "Internal server error",
+      });
+  }
+};
+
+
+
+exports.getUserTransactionHistory = async (req, res) => {
+  try {
+    const { id } = req.params; 
+    console.log("userid", id)// Get userId from request params
+
+    // Find all subscriptions associated with the user
+    const transactions = await Subscription.find({ userId : id }).sort({ createdAt: -1 });
+    console.log("transactions", transactions)
+
+    if (!transactions || transactions.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No transaction history found for this user',
+      });
+    }
+
+    // Optionally, you can format the response data
+    const transactionHistory = transactions.map(transaction => ({
+      transactionId: transaction.transactionId,
+      paymentAmount: transaction.paymentAmount,
+      currency: transaction.currency,
+      paymentMethod: transaction.paymentMethod,
+      subscriptionPlan: transaction.subscriptionPlan,
+      subscriptionStatus: transaction.subscriptionStatus,
+      startedAt: transaction.startedAt.toISOString().slice(0, 10), // Format to 'yyyy-mm-dd'
+      expiresAt: transaction.expiresAt ? transaction.expiresAt.toISOString().slice(0, 10) : null, 
+    }));
+
+    res.status(200).json({
+      success: true,
+      message : "All Transction found Successfully !!",
+      transactionHistory,
+    });
+
+  } catch (err) {
+    console.error("Error fetching transaction history:", err);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
 
 
 

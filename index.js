@@ -7,6 +7,7 @@ const path = require('path');
 const userRoutes = require("./routes/userRoutes");
 const questionRoutes = require("./routes/questionRoute");
 const examRoute = require("./routes/examRoute");
+const stripeRoute = require("./routes/stripeRoute")
 const connectDb = require("./utils/db");
 require("dotenv").config();
 
@@ -28,13 +29,14 @@ app.use(bodyParser.urlencoded({ limit: "1024mb", extended: true }));
 app.use(morgan("dev"));
 
 // Static files
-console.log("____dirname", path.join(__dirname))
+console.log("____dirname", path.join(__dirname));
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
 // Routes
 app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/question", questionRoutes);
 app.use("/api/v1/exam", examRoute);
+app.use("/api/v1/stripe", stripeRoute);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

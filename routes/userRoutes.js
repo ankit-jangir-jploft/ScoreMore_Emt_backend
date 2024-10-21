@@ -31,8 +31,12 @@ router.post("/userQuestionData", isAuthenticated, userController.userQuestionDat
 router.post("/updateQuestion", userController.updateQuestionData)
 router.post("/submitTestResult", userController.submitTestResults);
 router.post("/lastSubmitQuestion", userController.lastSubmitQuestion)
-
 router.post("/allExamRecord", userController.allExamRecord)
+
+
+// user subscription rouyr
+router.get("/subscription/:id", userController.getSubscriptionDetails)
+router.get("/transactionHistory/:id", userController.getUserTransactionHistory)
 
 
 module.exports = router;

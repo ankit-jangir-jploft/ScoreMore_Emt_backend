@@ -1,9 +1,11 @@
 const FilteredQuestion = require("../models/FilterQuestionTestData");
 const { UserQuestionData } = require("../models/User");
+const Question = require("../models/question");
 const TestResult = require('../models/TestResult');
 const jwt = require("jsonwebtoken");
 const moment = require("moment");
 const { trusted } = require("mongoose");
+const { datacatalog_v1 } = require("googleapis");
 
 exports.examRecord = async (req, res) => {
     try {
@@ -146,4 +148,85 @@ exports.todayDailyChallangeStatus = async (req, res) => {
         });
     }
 };
+
+exports.getPerOptionPercentage = async (req, res) => {
+    try {
+        const { questionId } = req.body;
+        const findQuestion = await Question.findById(questionId);
+        console.log("findQuestion", findQuestion);
+        // Validate the required fields
+        if (!questionId) {
+            return res.status(400).json({
+                success: false,
+                message: "Missing required field: questionId",
+            });
+        }
+
+        // Fetch all the records for the given questionId
+        const userQuestionData = await UserQuestionData.find({ questionId });
+        // console.log("userQuestionData", userQuestionData)
+
+        // Check if there are any responses
+        if (!userQuestionData || userQuestionData.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "No responses found for the given questionId",
+            });
+        }
+
+        // Initialize counters for each option
+        let countA = 0, countB = 0, countC = 0, countD = 0;
+
+        // Count how many users selected each option
+        userQuestionData.forEach((data) => {
+            // console.log("data---------", data)
+            switch (data.userSelectedOption) {
+                case "a":
+                    countA++;
+                    break;
+                case "b":
+                    countB++;
+                    break;
+                case "c":
+                    countC++;
+                    break;
+                case "d":
+                    countD++;
+                    break;
+                default:
+                    break;
+            }
+        });
+
+        // Calculate total responses
+        const totalResponses = countA + countB + countC + countD;
+        // console.log("count a, countb, count c, count d", countA, countB, countC, countD);
+
+        // Calculate percentage for each option
+        const percentageA = totalResponses ? (countA / totalResponses) * 100 : 0;
+        const percentageB = totalResponses ? (countB / totalResponses) * 100 : 0;
+        const percentageC = totalResponses ? (countC / totalResponses) * 100 : 0;
+        const percentageD = totalResponses ? (countD / totalResponses) * 100 : 0;
+
+        // Return the results
+        res.status(200).json({
+            success: true,
+            data: {
+                questionId,
+                totalResponses,
+                optionA: percentageA.toFixed(2) + "%",
+                optionB: percentageB.toFixed(2) + "%",
+                optionC: percentageC.toFixed(2) + "%",
+                optionD: percentageD.toFixed(2) + "%",
+            },
+        });
+    } catch (err) {
+        console.error("Error:", err);
+        res.status(500).json({
+            success: false,
+            message: "Internal server error",
+        });
+    }
+};
+
 
