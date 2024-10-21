@@ -1,4 +1,3 @@
-// models/Question.js ss
 const mongoose = require('mongoose');
 
 const questionSchema = new mongoose.Schema({
@@ -41,6 +40,23 @@ const questionSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true,
+  },
+  // New fields for storing option percentages
+  optionAPercentage: {
+    type: Number,
+    default: 0,
+  },
+  optionBPercentage: {
+    type: Number,
+    default: 0,
+  },
+  optionCPercentage: {
+    type: Number,
+    default: 0,
+  },
+  optionDPercentage: {
+    type: Number,
+    default: 0,
   },
 }, { timestamps: true });
 

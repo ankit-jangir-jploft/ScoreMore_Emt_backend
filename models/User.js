@@ -25,7 +25,7 @@ const userSchema = new mongoose.Schema(
       type: String,
     },
     otpExpiration: {
-      type : String,
+      type: String,
     },
     password: {
       type: String,
@@ -36,8 +36,8 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      default: 'user',
-      enum: ['user', 'admin'],
+      default: "user",
+      enum: ["user", "admin"],
     },
     isEmailVerified: {
       type: Boolean,
@@ -48,67 +48,135 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
     socialId: {
-      type : String
+      type: String,
     },
     registrationType: {
-      type : String
-    }
+      type: String,
+    },
+    subscriptionStatus: {
+      type: String, // e.g., "active", "canceled", "pending"
+      default: "pending",
+    },
+    subscriptionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Subscription",
+      required: false,
+    },
   },
   {
     timestamps: true,
   }
 );
 
+const SubscriptionSchema = new mongoose.Schema({
+  userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+  },
+  transactionId: {
+      type: String,
+      required: true
+  },
+  paymentAmount: {
+      type: Number,
+      required: true
+  },
+  currency: {
+      type: String,
+      required: true,
+      default: 'USD'
+  },
+  subscriptionStatus: {
+      type: String,
+      enum: ['pending', 'active', 'canceled'],
+      default: 'pending'
+  },
+  paymentMethod: {
+      type: String,
+      required: true
+  },
+  subscriptionPlan: {
+      type: String, // The Stripe priceId or custom plan identifier
+      required: true
+  },
+  startedAt: {
+      type: Date,
+      required: true,
+      default: Date.now
+  },
+  expiresAt: {
+      type: Date,
+      required: false // Can be calculated later based on plan duration
+  }
+}, {
+  timestamps: true // Automatically add createdAt and updatedAt fields
+});
+
 // User Question Data Schema
-const userQuestionDataSchema = new mongoose.Schema({
+const userQuestionDataSchema = new mongoose.Schema(
+  {
     userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        required: true,
-        ref: 'User' // Assuming you have a User model
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      ref: "User", // Assuming you have a User model
     },
     questionId: {
-        type: mongoose.Schema.Types.ObjectId,
-        required: true,
-        ref: 'Question' // Assuming you have a Question model
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      ref: "Question", // Assuming you have a Question model
     },
-    userSelectedOption : {
+    userSelectedOption: {
       type: String,
-      required: true
+      required: true,
     },
     isCorrect: {
-        type: Boolean,
-        required: true
+      type: Boolean,
+      required: true,
     },
     isMarked: {
-        type: Boolean,
-        default: false
+      type: Boolean,
+      default: false,
     },
     timeTaken: {
-        type: String, // Store time in seconds or milliseconds
-        required: true
+      type: String, // Store time in seconds or milliseconds
+      required: true,
     },
     level: {
-        type: String,
-        required: true
+      type: String,
+      required: true,
     },
     isUsed: {
-        type: Boolean,
-        default: true
+      type: Boolean,
+      default: true,
     },
     isOmitted: {
-        type: Boolean,
-        default: false
+      type: Boolean,
+      default: false,
     },
-    testId : {
+    testId: {
       type: String,
-      required: true
-    }
-}, {
-    timestamps: true // Automatically add createdAt and updatedAt fields
-});
+      required: true,
+    },
+  },
+  {
+    timestamps: true, // Automatically add createdAt and updatedAt fields
+  }
+);
+
+
+
+
+
+
+
 
 // Exporting both models
 const User = mongoose.model("User", userSchema);
-const UserQuestionData = mongoose.model('UserQuestionData', userQuestionDataSchema);
+const UserQuestionData = mongoose.model(
+  "UserQuestionData",
+  userQuestionDataSchema
+);
+const Subscription = mongoose.model('Subscription', SubscriptionSchema);
 
-module.exports = { User, UserQuestionData };
+module.exports = { User, UserQuestionData, Subscription };
