@@ -16,7 +16,7 @@ const moment = require("moment")
 
 exports.signup = async (req, res) => {
   try {
-    console.log(req.body);
+    console.log("req.body",req.body);
     const { firstName, lastName, email, password, confirmPassword, role = "user" } = req.body;
     console.log("fullname, email, phoneNumber, password ", firstName, lastName, email, password, confirmPassword);
 
@@ -1516,6 +1516,7 @@ exports.getUserTransactionHistory = async (req, res) => {
 
 
 
+  
   async function sendEmail(mailOptions) {
     try {
       let transporter = nodeMailer.createTransport({
@@ -1540,6 +1541,8 @@ exports.getUserTransactionHistory = async (req, res) => {
       return false;
     }
   }
+
+ 
 
  
   
