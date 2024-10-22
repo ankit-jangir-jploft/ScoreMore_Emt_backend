@@ -7,7 +7,8 @@ const path = require('path');
 const userRoutes = require("./routes/userRoutes");
 const questionRoutes = require("./routes/questionRoute");
 const examRoute = require("./routes/examRoute");
-const stripeRoute = require("./routes/stripeRoute")
+const stripeRoute = require("./routes/stripeRoute");
+const flashcardRoute = require("./routes/flashcard")
 const connectDb = require("./utils/db");
 require("dotenv").config();
 
@@ -37,6 +38,7 @@ app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/question", questionRoutes);
 app.use("/api/v1/exam", examRoute);
 app.use("/api/v1/stripe", stripeRoute);
+app.use("/api/v1/flashcard", flashcardRoute);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

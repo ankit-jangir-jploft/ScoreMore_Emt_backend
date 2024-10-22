@@ -165,6 +165,38 @@ const userQuestionDataSchema = new mongoose.Schema(
 );
 
 
+const userFlashcardSchema = new mongoose.Schema({
+  userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+  },
+  flashcardId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Flashcard',
+      required: true
+  },
+  subject: {
+      type: String, // e.g., "medical"
+      required: true
+  },
+  level: {
+      type: Number, // e.g., 1 to 10
+      required: true
+  },
+  isRead: {
+      type: Boolean,
+      default: false
+  },
+  lastReadAt: {
+      type: Date
+  },
+  createdAt: {
+      type: Date,
+      default: Date.now
+  }
+});
+
 
 
 
@@ -178,5 +210,6 @@ const UserQuestionData = mongoose.model(
   userQuestionDataSchema
 );
 const Subscription = mongoose.model('Subscription', SubscriptionSchema);
+const UserFlashcard = mongoose.model('UserFlashcard', userFlashcardSchema);
 
-module.exports = { User, UserQuestionData, Subscription };
+module.exports = { User, UserQuestionData, Subscription, UserFlashcard };
