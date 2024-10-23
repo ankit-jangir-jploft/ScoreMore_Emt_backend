@@ -3,28 +3,73 @@ const path = require('path');
 const { UserFlashcard } = require('../models/User');
 const jwt = require("jsonwebtoken");
 
-// Add Flashcard API
+
 exports.addFlashcard = async (req, res) => {
     try {
-        console.log("req.body", req.body); // Log the body fields
-        console.log("req.file", req.file); // Log the file details
+        // Log incoming request details
+        console.log("Incoming Request Body:", req.body); // Log the body fields
+        console.log("Uploaded File Details:", req.file); // Log the file details
 
-        const { question, explanation, subject, level, hint } = req.body;
+        const { question, explanation, subject, level, hint, subtitle } = req.body;
 
         // Validate required fields
+        // Validate required fields
         if (!question || !explanation || !subject || !level) {
+            console.error("Validation Error: Missing required fields."); // Log validation error
             return res.status(400).json({
                 message: "Please provide all required fields: question, explanation, subject, level.",
                 success: false
             });
         }
 
+        // Convert level to an integer for comparison
+        const newLevel = parseInt(level, 10);
+        console.log("Parsed Level:", newLevel); // Log the parsed level
+
+        // Check for existing flashcards with the same subject
+        const existingFlashcards = await Flashcard.find({ subject });
+        console.log("Existing Flashcards Found:", existingFlashcards.length); // Log the number of existing flashcards
+
+        if (existingFlashcards.length > 0) {
+            const existingLevels = existingFlashcards.map(fc => fc.level).sort((a, b) => a - b);
+            const maxLevel = parseInt(existingLevels[existingLevels.length - 1], 10); // Convert maxLevel to an integer
+
+            console.log("Existing Levels:", existingLevels); // Log existing levels
+            console.log("Max Existing Level:",typeof maxLevel); // Log max existing level
+
+            // Check if the new level is valid
+            if (newLevel > maxLevel + 1) {
+                console.error(`Gap Error: Attempting to add level ${newLevel} with max level ${maxLevel}.`); // Log the gap error
+                return res.status(400).json({
+                    message: `In this subject, the last level is ${maxLevel}. You cannot add level ${newLevel} directly. Please add level ${maxLevel + 1} first.`,
+                    success: false
+                });
+            }
+
+            // If adding a new level, check for subtitle requirement
+            if (newLevel === maxLevel + 1) {
+                // Check if a subtitle is provided
+                if (!subtitle) {
+                    console.error("Subtitle Requirement Error: Missing subtitle for new level."); // Log the subtitle error
+                    return res.status(400).json({
+                        message: "Subtitle is required for the new level.",
+                        success: false
+                    });
+                }
+            }
+        }
+
+        // Proceed with file handling and saving the flashcard...
+
+
         // Extract the image file if uploaded
         let profilePicture;
         if (req.file) {
             // Get just the filename (not the full path)
             profilePicture = path.basename(req.file.path);
+            console.log("Profile Picture Filename:", profilePicture); // Log the profile picture filename
         } else {
+            console.error("File Upload Error: Profile picture is required."); // Log the file error
             return res.status(400).json({
                 message: "Profile picture is required.",
                 success: false
@@ -38,22 +83,26 @@ exports.addFlashcard = async (req, res) => {
             explanation,
             subject,
             hint,
-            level
+            level: newLevel,
+            subtitle // Add the subtitle field
         });
 
         // Save the flashcard to the database
-        await flashcard.save();
+        const savedFlashcard = await flashcard.save();
+        console.log("Flashcard Saved Successfully:", savedFlashcard); // Log the saved flashcard data
 
         return res.status(201).json({
             message: "Flashcard created successfully",
             success: true,
-            data: flashcard
+            data: savedFlashcard
         });
     } catch (err) {
-        console.error("Error adding flashcard:", err);
+        console.error("Error adding flashcard:", err); // Log any errors
         return res.status(500).json({ message: "Internal server error", success: false });
     }
 };
+
+
 
 
 // Update Flashcard API
@@ -63,7 +112,7 @@ exports.updateFlashcard = async (req, res) => {
         console.log("req.file", req.file);
 
         const { id } = req.params;
-        const { question, explanation, subject, level, hint } = req.body;
+        const { question, explanation, subject, level, hint, subtitle } = req.body;
 
         // Find the flashcard by ID
         const flashcard = await Flashcard.findById(id);
@@ -80,6 +129,7 @@ exports.updateFlashcard = async (req, res) => {
         if (subject) flashcard.subject = subject;
         if (level) flashcard.level = level;
         if (hint) flashcard.hint = hint;
+        if (subtitle) flashcard.subtitle = subtitle;
 
         // If a new profile picture is uploaded, update the image path
         if (req.file) {
@@ -138,14 +188,14 @@ exports.getRoadmapSubject = async (req, res) => {
         // Extract and verify token
         const token = req.headers.authorization?.split(" ")[1];
         console.log("Token in myProfile:", token);
-    
+
         if (!token) {
             return res.status(401).json({
                 message: "No token provided!",
                 success: false,
             });
         }
-    
+
         const decoded = jwt.verify(token, process.env.SECRET_KEY);
         const userId = decoded.userId;
         console.log("Decoded User ID:", userId);
@@ -253,9 +303,9 @@ exports.getRoadmap = async (req, res) => {
 
         const levels = {};
 
-        // Organize flashcards by level
+        // Organize flashcards by level and collect one subtitle
         findAllFlashcard.forEach(flashcard => {
-            const { level } = flashcard;
+            const { level, subtitle } = flashcard;
 
             if (!levels[level]) {
                 levels[level] = {
@@ -264,11 +314,17 @@ exports.getRoadmap = async (req, res) => {
                     isCompleted: false,
                     isUnlocked: false,
                     isCurrent: false, // This will be updated later
+                    subtitle: null // To hold one subtitle for each level
                 };
             }
 
             // Count total flashcards for each level
             levels[level].totalFlashcards++;
+
+            // Store the first subtitle found for this level
+            if (levels[level].subtitle === null && subtitle) {
+                levels[level].subtitle = subtitle;
+            }
         });
 
         // Track submitted flashcards by the user (for the same subject)
@@ -320,6 +376,7 @@ exports.getRoadmap = async (req, res) => {
                 isCompleted: levels[levelKey].isCompleted,
                 isUnlocked: levels[levelKey].isUnlocked,
                 isCurrent: levels[levelKey].isCurrent,
+                subtitle: levels[levelKey].subtitle // Include one subtitle for each level
             })),
         };
 
@@ -334,6 +391,7 @@ exports.getRoadmap = async (req, res) => {
         return res.status(500).json({ message: "Internal server error", success: false });
     }
 };
+
 
 exports.getAllFlashCardDataInLevel = async (req, res) => {
     try {
@@ -380,7 +438,7 @@ exports.getAllFlashCardDataInLevel = async (req, res) => {
 
         // Return the flashcards in the response
         return res.status(200).json({
-            success : true,
+            success: true,
             message: 'Flashcards retrieved successfully.',
             data: responseData,
         });
@@ -469,7 +527,7 @@ exports.getUserSubmitFlashcard = async (req, res) => {
         // Extract token from headers
         const token = req.headers.authorization?.split(" ")[1];
         console.log("Token in myProfile:", token);
-    
+
         // Check for token presence
         if (!token) {
             return res.status(401).json({
@@ -477,18 +535,18 @@ exports.getUserSubmitFlashcard = async (req, res) => {
                 success: false,
             });
         }
-    
+
         // Verify the token
         const decoded = jwt.verify(token, process.env.SECRET_KEY);
         const userId = decoded.userId; // Assuming userId is stored in the token
-    
+
         // Log the user ID
         console.log("Decoded User ID:", userId);
 
         // Retrieve the most recent user flashcard
         const userFlashcard = await UserFlashcard.findOne({ userId })
             .sort({ createdAt: -1 });
-            console.log("userFlashcard laytest", userFlashcard) // Sort to get the most recent flashcard
+        console.log("userFlashcard laytest", userFlashcard) // Sort to get the most recent flashcard
 
         // Check if the user has any flashcards
         if (!userFlashcard) {

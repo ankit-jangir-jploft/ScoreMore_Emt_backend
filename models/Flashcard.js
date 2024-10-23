@@ -28,6 +28,9 @@ const flashcardSchema = new mongoose.Schema({
         type: String, // You can customize this as needed
         required: true
     },
+    subtitle : {
+        type : String
+    },
     createdAt: {
         type: Date,
         default: Date.now
