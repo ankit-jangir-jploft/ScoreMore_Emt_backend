@@ -335,7 +335,6 @@ exports.getRoadmap = async (req, res) => {
     }
 };
 
-
 exports.getAllFlashCardDataInLevel = async (req, res) => {
     try {
         const token = req.headers.authorization?.split(" ")[1];
@@ -381,6 +380,7 @@ exports.getAllFlashCardDataInLevel = async (req, res) => {
 
         // Return the flashcards in the response
         return res.status(200).json({
+            success : true,
             message: 'Flashcards retrieved successfully.',
             data: responseData,
         });
@@ -389,7 +389,6 @@ exports.getAllFlashCardDataInLevel = async (req, res) => {
         return res.status(500).json({ message: "Internal server error", success: false });
     }
 };
-
 
 exports.submitFlashcard = async (req, res) => {
     const { userId, flashcardId } = req.body;
@@ -455,6 +454,7 @@ exports.submitFlashcard = async (req, res) => {
         }
 
         return res.status(200).json({
+            success: true,
             message: 'Flashcard marked as read successfully.',
             userFlashcard
         });
