@@ -20,7 +20,7 @@ const port = process.env.PORT || 4748;
 const corsOptions = {
   origin: (origin, callback) => {
       // Allow all origins in development, but restrict in production
-      const allowedOrigins = ["http://localhost:5173", "http://localhost:5174", "http://v4.checkprojectstatus.com:4749", "http://v4.checkprojectstatus.com:3333"];
+      const allowedOrigins = ["http://localhost:5173", "http://localhost:5174", "https://v4.checkprojectstatus.com:4749", "https://v4.checkprojectstatus.com:3333"];
       if (!origin || allowedOrigins.includes(origin)) {
           callback(null, true); // Allow the request
       } else {
