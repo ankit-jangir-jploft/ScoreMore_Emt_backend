@@ -52,7 +52,7 @@ exports.checkout = async (req, res) => {
             currency: session.currency,
             subscriptionStatus: 'pending', // Initial status until confirmed
             paymentMethod: 'card',
-            subscriptionPlan: priceId,
+            subscriptionPlan: priceId === "price_1QBskbJpjKGzAGnrmefpvjeu" ? "1 Month Subscription" : priceId === "price_1QCDg1JpjKGzAGnr1kND8zrv" ? "3 month Subscription" : priceId === "" ? "12 month subscription" : "" ,
             startedAt: new Date(),
             expiresAt: new Date(Date.now() + planDuration * 24 * 60 * 60 * 1000), // Set expiration date based on plan duration
         });

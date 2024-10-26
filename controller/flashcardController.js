@@ -4,20 +4,27 @@ const { UserFlashcard } = require('../models/User');
 const jwt = require("jsonwebtoken");
 
 
+
+// curd opreration for flashcards
 exports.addFlashcard = async (req, res) => {
     try {
+        // Trim the incoming request body fields
+        Object.keys(req.body).forEach((key) => {
+            if (typeof req.body[key] === 'string') {
+                req.body[key] = req.body[key].trim();
+            }
+        });
+
         // Log incoming request details
-        console.log("Incoming Request Body:", req.body); // Log the body fields
-        console.log("Uploaded File Details:", req.file); // Log the file details
+        console.log("Incoming Request Body (trimmed):", req.body); 
+        console.log("Uploaded File Details:", req.file); 
 
         const { question, explanation, subject, level, hint, subtitle } = req.body;
 
-        // Validate required fields
-        // Validate required fields
-        if (!question || !explanation || !subject || !level) {
-            console.error("Validation Error: Missing required fields."); // Log validation error
+        if (!question || !explanation || !subject || !level  || !hint) {
+            console.error("Validation Error: Missing required fields."); 
             return res.status(400).json({
-                message: "Please provide all required fields: question, explanation, subject, level.",
+                message: "Please provide all required fields: question, explanation, subject, level, hint.",
                 success: false
             });
         }
@@ -58,9 +65,6 @@ exports.addFlashcard = async (req, res) => {
                 }
             }
         }
-
-        // Proceed with file handling and saving the flashcard...
-
 
         // Extract the image file if uploaded
         let profilePicture;
@@ -103,9 +107,6 @@ exports.addFlashcard = async (req, res) => {
 };
 
 
-
-
-// Update Flashcard API
 exports.updateFlashcard = async (req, res) => {
     try {
         console.log("req.body", req.body);
@@ -152,13 +153,13 @@ exports.updateFlashcard = async (req, res) => {
     }
 };
 
-// Delete Flashcard API
 exports.deleteFlashcard = async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Find the flashcard by ID and delete it
-        const flashcard = await Flashcard.findByIdAndDelete(id);
+        // Find the flashcard by ID
+        const flashcard = await Flashcard.findById(id);
+        console.log("flashcard", flashcard);
 
         if (!flashcard) {
             return res.status(404).json({
@@ -167,10 +168,29 @@ exports.deleteFlashcard = async (req, res) => {
             });
         }
 
+        // Get the level and subject of the flashcard
+        const level = flashcard.level;
+        const subject = flashcard.subject;
+        console.log("level", typeof level);
+
+        // Count how many flashcards exist for this subject and level
+        const count = await Flashcard.countDocuments({ level, subject });
+        console.log("count in level", count);
+
+        // Check if there's more than one flashcard for the same subject and level
+        if (count <= 1) {
+            return res.status(400).json({
+                message: `There is only one flashcard in subject "${subject}" and level ${level}. You cannot delete the last flashcard from this level.`,
+                success: false
+            });
+        }
+
+        // Proceed to delete the flashcard
+        await Flashcard.findByIdAndDelete(id);
+
         return res.status(200).json({
             message: "Flashcard deleted successfully",
-            success: true,
-            data: flashcard // Return the deleted flashcard data (optional)
+            success: true // Return the deleted flashcard data (optional)
         });
     } catch (err) {
         console.error("Error deleting flashcard:", err);
@@ -178,10 +198,49 @@ exports.deleteFlashcard = async (req, res) => {
     }
 };
 
+exports.getAllFlashcards = async (req, res) => {
+    const { page = 1, limit = 9, subject } = req.query; // Extracting query parameters
+    const options = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+    };
+  
+    try {
+      // Build the filter object
+      const filter = {};
+      if (subject) {
+        filter.subject = subject; // Add subject filtering if provided
+      }
+  
+      // Fetch flashcards sorted by the creation date in descending order
+      const flashcards = await Flashcard.find(filter)
+        .sort({ createdAt: -1 }) // Sort by createdAt field in descending order
+        .limit(options.limit)
+        .skip((options.page - 1) * options.limit); // Pagination logic
+  
+      const totalFlashcards = await Flashcard.countDocuments(filter); // Count total documents
+  
+      res.status(200).json({
+        success: true,
+        data: flashcards,
+        pagination: {
+          totalFlashcards,
+          totalPages: Math.ceil(totalFlashcards / options.limit),
+          currentPage: options.page,
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching flashcards:", error);
+      res.status(500).json({
+        success: false,
+        message: 'Error fetching flashcards',
+        error: error.message,
+      });
+    }
+  };
+  
 
-
-
-
+// apis for flashcards yo
 
 exports.getRoadmapSubject = async (req, res) => {
     try {
@@ -391,7 +450,6 @@ exports.getRoadmap = async (req, res) => {
         return res.status(500).json({ message: "Internal server error", success: false });
     }
 };
-
 
 exports.getAllFlashCardDataInLevel = async (req, res) => {
     try {

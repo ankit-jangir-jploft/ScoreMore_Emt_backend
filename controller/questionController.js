@@ -19,21 +19,6 @@ function shuffleArray(array) {
   return array;
 }
 // Get all questions
-exports.getAllQuestions = (req, res) => {
-  try {
-    res.status(200).json({
-      success: true,
-      message: "Questions retrieved successfully",
-      data: questionsData
-    });
-  } catch (err) {
-    console.error("Error retrieving questions:", err);
-    res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
-  }
-};
 
 // exports.filterQuestions = async (req, res) => {
 //   console.log("req.body", req.body);
@@ -916,7 +901,7 @@ exports.filterQuestions = async (req, res) => {
             error: error.message,
           });
         }
-      };
+};
 
 
 
@@ -1050,7 +1035,74 @@ exports.addQuestion = async (req, res) => {
   }
 };
 
+exports.getAllQuestions = async (req, res) => {
+  const { page = 1, limit = 10, subject } = req.query; // Extracting query parameters
+  const options = {
+    page: parseInt(page),
+    limit: parseInt(limit),
+  };
 
+  try {
+    // Build the filter object
+    const filter = { isActive: true };
+    if (subject) {
+      filter.subject = subject; // Add subject filtering if provided
+    }
+
+    // Fetch questions sorted by the creation date in descending order
+    const questions = await Question.find(filter)
+      .sort({ createdAt: -1 }) // Sort by createdAt field in descending order
+      .limit(options.limit)
+      .skip((options.page - 1) * options.limit); // Pagination logic
+
+    const totalQuestions = await Question.countDocuments(filter); // Count total documents
+
+    res.status(200).json({
+      success: true,
+      data: questions,
+      pagination: {
+        totalQuestions,
+        totalPages: Math.ceil(totalQuestions / options.limit),
+        currentPage: options.page,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching questions:", error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching questions',
+      error: error.message,
+    });
+  }
+};
+
+exports.getQuestionById = async (req, res) => {
+  try {
+      // Extract question ID from the request parameters
+      const { id } = req.params;
+
+      // Find the question by ID
+      const question = await Question.findById(id);
+
+      // If question not found, return a 404 error
+      if (!question) {
+          return res.status(404).json({ message: 'Question not found' });
+      }
+
+      // Return the question details
+      res.status(200).json({
+          success: true,
+          data: question,
+      });
+  } catch (error) {
+      // Handle any errors that occur during the request
+      console.error(error);
+      res.status(500).json({
+          success: false,
+          message: 'Server error',
+      });
+  }
+};
 
 exports.updateQuestion = async (req, res) => {
   const { creatorId, question, options, correctOption, subject, level, explanation, tags, isActive } = req.body;
@@ -1115,12 +1167,12 @@ exports.deleteQuestion = async (req, res) => {
     }
 
     // Check if the user is authorized to delete the question
-    if (question.creatorId !== creatorId) {
-      return res.status(403).json({ message: 'Unauthorized to delete this question' });
-    }
+    // if (question.creatorId !== creatorId) {
+    //   return res.status(403).json({ message: 'Unauthorized to delete this question' });
+    // }
 
     // Delete the question
-    await question.remove();
+    await Question.findByIdAndDelete(id);
 
     return res.status(200).json({ message: 'Question deleted successfully' });
   } catch (error) {

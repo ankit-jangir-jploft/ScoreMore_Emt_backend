@@ -47,6 +47,10 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    isBlocked : {
+      type : Boolean,
+      default : false
+    },
     socialId: {
       type: String,
     },
@@ -97,7 +101,7 @@ const SubscriptionSchema = new mongoose.Schema({
       required: true
   },
   subscriptionPlan: {
-      type: String, // The Stripe priceId or custom plan identifier
+      type: String, 
       required: true
   },
   startedAt: {

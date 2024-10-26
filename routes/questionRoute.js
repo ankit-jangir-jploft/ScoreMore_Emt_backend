@@ -3,12 +3,14 @@ const router = express.Router();
 const questionController = require("../controller/questionController")
 
 // Route to get all questions
-router.get('/getAllQuestion', questionController.getAllQuestions);
+router.get('/getAllQuestions', questionController.getAllQuestions);
 router.post('/filterQuestion', questionController.filterQuestions);
 
 
 // curd for question 
 router.post("/addQuestion", questionController.addQuestion);
+router.get("/getQuestion/:id", questionController.getQuestionById);
+
 router.post("/updatequestion/:id", questionController.updateQuestion)
 router.post("/deleteQuestion/:id", questionController.deleteQuestion)
 

@@ -1,6 +1,5 @@
-const {User, UserQuestionData, Subscription} = require("../models/User");
-const Question = require("../models/question")
-
+const { User, UserQuestionData, Subscription } = require("../models/User");
+const Question = require("../models/question");
 const TestResult = require('../models/TestResult'); 
 const bcrypt = require("bcrypt");
 require("dotenv").config();
@@ -8,10 +7,17 @@ const jwt = require("jsonwebtoken");
 const nodeMailer = require("nodemailer");
 const crypto = require("crypto");
 const path = require('path');
+const pdf = require('puppeteer');
 const { default: mongoose } = require("mongoose");
 const FilteredQuestion = require("../models/FilterQuestionTestData");
+const ejs = require("ejs");
+const moment = require("moment");
+const fs = require('fs');
 
-const moment = require("moment")
+// Adjust the paths as per your project structure
+const templatePath = path.join(__dirname, '..', 'views', 'templates', 'transactionInvoice.ejs');
+const pdfDirectory = path.join(__dirname, '..', 'public', 'pdfs');
+const publicDirectory = path.join(__dirname, '..', 'public'); 
 
 
 exports.signup = async (req, res) => {
@@ -584,33 +590,7 @@ exports.updateUserStatus = async (req, res) => {
   }
 };
 
-exports.deactivateUser = async (req, res) => {
-  try {
-      const { _id } = req.user; 
-      const user = await User.findById(_id);
-      if (!user) {
-          return res.status(404).json({
-              message: 'User not found',
-              success: false,
-          });
-      }
 
-      // Deactivate the user
-      user.isActive = false; 
-      await user.save();
-
-      return res.status(200).json({
-          message: 'User account deactivated successfully',
-          success: true,
-      });
-  } catch (err) {
-      console.error('Error deactivating user:', err);
-      return res.status(500).json({
-          message: 'Internal server error',
-          success: false,
-      });
-  }
-};
 
 
 // exports.myProfile = async (req, res) => {
@@ -872,12 +852,6 @@ exports.myProfile = async (req, res) => {
   }
 };
 
-
-
-
-
-
-
 exports.editProfile = async (req, res) => {
   try {
     const { _id } = req.user; 
@@ -922,6 +896,39 @@ exports.editProfile = async (req, res) => {
     return res.status(500).json({ message: "Internal server error", success: false });
   }
 };
+
+exports.getUserDetail = async (req, res) => {
+  const { id } = req.params; // Get userId from the request parameters
+
+  try {
+    // Find the user by userId
+    const user = await User.findById(id);
+
+    // Check if user exists
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+        success: false,
+      });
+    }
+
+    // Return user details, excluding sensitive information
+    const { password, confirmPassword, ...userDetails } = user._doc; // Exclude password and confirmPassword
+
+    return res.status(200).json({
+      message: "User details retrieved successfully",
+      success: true,
+      data: userDetails,
+    });
+  } catch (error) {
+    console.error("Error fetching user details", error);
+    return res.status(500).json({
+      message: "Internal server error",
+      success: false,
+    });
+  }
+};
+
 
 // save  user Question data
 
@@ -1052,9 +1059,6 @@ const updateQuestionPercentages = async (questionId) => {
     { new: true } // Return the updated document
   );
 };
-
-
-
 
 exports.updateQuestionData = async (req, res) => {
   try {
@@ -1214,9 +1218,6 @@ exports.submitTestResults = async (req, res) => {
   }
 };
 
-
-
-
 exports.lastSubmitQuestion = async (req, res) => {
   try {
     const { userId, testId } = req.body;
@@ -1248,7 +1249,6 @@ exports.lastSubmitQuestion = async (req, res) => {
     });
   }
 };
-
 
 exports.allExamRecord = async (req, res) => {
   try {
@@ -1389,10 +1389,17 @@ exports.allExamRecord = async (req, res) => {
   }
 };
 
-
 exports.getSubscriptionDetails = async (req, res) => {
   try {
       const { id } = req.params; // Get userId from route parameters
+
+      // Validate ObjectId (if using Mongoose)
+      if (!mongoose.isValidObjectId(id)) {
+          return res.status(400).json({
+              success: false,
+              message: "Invalid user ID format",
+          });
+      }
 
       // Find the user in the database by ID
       const user = await User.findById(id);
@@ -1415,7 +1422,7 @@ exports.getSubscriptionDetails = async (req, res) => {
       // Calculate remaining days
       const currentDate = new Date();
       const expiresAt = new Date(subscription.expiresAt);
-      const remainingDays = Math.ceil((expiresAt - currentDate) / (1000 * 60 * 60 * 24)); // Days left
+      const remainingDays = Math.max(Math.ceil((expiresAt - currentDate) / (1000 * 60 * 60 * 24)), 0); // Ensure no negative values
 
       // Prepare the subscription details to return
       const subscriptionDetails = {
@@ -1425,10 +1432,20 @@ exports.getSubscriptionDetails = async (req, res) => {
           subscriptionPlan: subscription.subscriptionPlan,
           startedAt: subscription.startedAt,
           expiresAt: subscription.expiresAt,
-          remainingDays: remainingDays > 0 ? remainingDays : 0, // Ensure remainingDays doesn't go negative
+          remainingDays: remainingDays,
           paymentMethod: subscription.paymentMethod,
           transactionId: subscription.transactionId,
       };
+
+      // Prepare client details (assuming they are part of the user or can be passed in)
+      const clientDetails = {
+          name: user.name,
+          address: user.address, // Adjust based on how you store user address
+          email: user.email,
+      };
+
+      // Generate invoice data
+      const invoiceData = await getInvoiceData(subscription._id, subscription, clientDetails);
 
       return res.status(200).json({
           success: true,
@@ -1438,7 +1455,8 @@ exports.getSubscriptionDetails = async (req, res) => {
               email: user.email,
               subscriptionId: subscription._id,
           },
-          subscription: subscriptionDetails
+          subscription: subscriptionDetails,
+          invoice: invoiceData // Return the generated invoice data
       });
   } catch (error) {
       console.error("Error retrieving subscription details:", error);
@@ -1448,7 +1466,6 @@ exports.getSubscriptionDetails = async (req, res) => {
       });
   }
 };
-
 
 
 exports.getUserTransactionHistory = async (req, res) => {
@@ -1494,6 +1511,122 @@ exports.getUserTransactionHistory = async (req, res) => {
   }
 };
 
+
+
+// user invoice 
+
+if (!fs.existsSync(publicDirectory)){
+  fs.mkdirSync(publicDirectory, { recursive: true });
+}
+
+if (!fs.existsSync(pdfDirectory)){
+  fs.mkdirSync(pdfDirectory, { recursive: true });
+}
+
+exports.getInvoicetemplate = async (req, res) => {
+  console.log("req.params", req.params);
+  const invoiceId = req.params.id;
+  console.log("invoice id", invoiceId);
+
+  try {
+      // Search for the subscription using the transactionId
+      const subscription = await Subscription.findOne({ transactionId: invoiceId });
+      console.log("subscription", subscription);
+
+      if (!subscription) {
+          return res.status(404).json({ success: false, message: "Invoice not found." });
+      }
+
+      // Fetch user details based on userId from subscription
+      const user = await User.findById(subscription.userId);
+      console.log("user", user)
+      if (!user) {
+          return res.status(404).json({ success: false, message: "User not found." });
+      }
+
+      // Prepare client details based on user schema
+      const clientDetails = {
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          mobileNumber: user.mobileNumber,
+          profilePicture: user.profilePicture,
+          // Add other user details as necessary
+      };
+
+      // Get the invoice data
+      const invoiceData = await getInvoiceData(invoiceId, subscription, clientDetails);
+      console.log("invoice data", invoiceData);
+      console.log("template path", templatePath);
+
+      // Render the invoice using EJS
+      ejs.renderFile(templatePath, invoiceData, async (err, html) => {
+          if (err) {
+              console.error('EJS render error:', err);
+              return res.status(500).send('Error generating invoice');
+          }
+
+          console.log('Generated HTML:', html);
+
+          try {
+              const pdfPath = await generatePDFBuffer(html, invoiceId);
+              res.setHeader('Content-Type', 'application/pdf');
+              res.setHeader('Content-Disposition', `attachment; filename=invoice-${invoiceId}.pdf`);
+              res.sendFile(pdfPath);
+          } catch (pdfErr) {
+              console.error('PDF generation error:', pdfErr);
+              return res.status(500).send('Error generating PDF');
+          }
+      });
+  } catch (error) {
+      console.error("Error generating invoice:", error);
+      return res.status(500).send("Internal Server Error");
+  }
+};
+
+
+
+const getInvoiceData = async (invoiceId, subscription, clientDetails) => {
+  // Calculate total amount based on subscription payment amount
+  const totalAmount = subscription.paymentAmount; // You can adjust this if needed
+
+  return {
+      invoiceNumber: invoiceId,
+      createdAt: new Date().toLocaleDateString(),
+      dueDate: new Date(subscription.expiresAt).toLocaleDateString(), // Use subscription's expiration date for due date
+      companyName: 'Scoremore',
+      companyAddress: '1234 Street, City, Country',
+      companyEmail: 'scoremore@example.com',
+      companyPhone: '123-456-7890',
+      clientName: `${clientDetails.firstName || 'Client'} ${clientDetails.lastName || 'Name'}`, // Combine first and last names
+      clientAddress: clientDetails.address || '5678 Avenue, City, Country', // Adjust as necessary, assuming `address` exists in clientDetails
+      clientEmail: clientDetails.email || 'client@example.com', // Use passed client details or default value
+      paymentMethod: subscription.paymentMethod, // Use subscription's payment method
+      items: [
+          { description: `${subscription.subscriptionPlan}`, amount: totalAmount },
+          // Add more items if necessary
+      ],
+      totalAmount: totalAmount,
+      companyLogo: '/path/to/logo.png' // Change the path accordingly
+  };
+};
+
+
+
+const generatePDFBuffer = async (html, invoiceId) => {
+  const browser = await pdf.launch();
+  const page = await browser.newPage();
+  await page.setContent(html);
+  
+  // Define the path to save the PDF
+  const pdfPath = path.join(pdfDirectory, `invoice-${invoiceId}.pdf`); // Save in public/pdfs
+  
+  // Generate and save the PDF
+  await page.pdf({ path: pdfPath, format: 'A4' });
+  
+  await browser.close();
+  return pdfPath; // Return the path for further use
+};
 
 
 

@@ -14,6 +14,7 @@ router.post("/socialLogin", userController.socialLogin)
 
 // My Profile
 router.post("/myProfile", isAuthenticated, userController.myProfile);
+router.get("/userDetail/:id", userController.getUserDetail);
 
 // Forgot Password and Reset Password 
 router.post('/forgotPassword', userController.forgotPassword);
@@ -22,7 +23,6 @@ router.post("/resetPassword", userController.resetPassword);
 // Protected routes (require authentication)
 router.patch("/editProfile", isAuthenticated, upload, userController.editProfile); 
 router.post("/logout", isAuthenticated, userController.logout); 
-router.patch("/delete", isAuthenticated, userController.deactivateUser);
 
 
 
@@ -36,7 +36,8 @@ router.post("/allExamRecord", userController.allExamRecord)
 
 // user subscription rouyr
 router.get("/subscription/:id", userController.getSubscriptionDetails)
-router.get("/transactionHistory/:id", userController.getUserTransactionHistory)
+router.get("/transactionHistory/:id", userController.getUserTransactionHistory);
+router.get("/invoice/:id", userController.getInvoicetemplate);
 
 
 module.exports = router;
