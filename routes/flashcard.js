@@ -7,7 +7,7 @@ const flashcardController = require("../controller/flashcardController");
 router.post("/addFlashcard", upload, flashcardController.addFlashcard);
 router.put("/updateFlashcard/:id", upload, flashcardController.updateFlashcard);
 router.delete("/deleteFlashcard/:id", flashcardController.deleteFlashcard);
-
+router.get("/getAllFlashcards", flashcardController.getAllFlashcards)
 
 
 router.get("/getRoadmapSubject", flashcardController.getRoadmapSubject)

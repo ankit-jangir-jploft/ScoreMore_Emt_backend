@@ -85,8 +85,6 @@ exports.examRecord = async (req, res) => {
     }
 };
 
-
-
  // Adjust the path to your model if needed
 
 exports.todayDailyChallangeStatus = async (req, res) => {
@@ -117,7 +115,8 @@ exports.todayDailyChallangeStatus = async (req, res) => {
 
         if (todayTests.length === 0) {
             return res.status(200).json({
-                success: true,
+                status: "not done",
+                success : true,
                 message: "No tests found for today.",
                 data : []
             });
