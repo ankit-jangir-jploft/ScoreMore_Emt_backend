@@ -16,26 +16,11 @@ require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 4748;
 
-// CORS Configuration
-const corsOptions = {
-  origin: (origin, callback) => {
-      // Allow all origins in development, but restrict in production
-      const allowedOrigins = ["http://localhost:5173", "http://localhost:5174", "https://v4.checkprojectstatus.com:4749", "https://v4.checkprojectstatus.com:3333"];
-      if (!origin || allowedOrigins.includes(origin)) {
-          callback(null, true); // Allow the request
-      } else {
-          callback(new Error("CORS not allowed"), false); // Reject the request
-      }
-  },
-  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-  allowedHeaders: "Content-Type,Authorization",
-  credentials: true,
-  preflightContinue: false,
-};
-
-
-// Middlewares
-app.use(cors(corsOptions));
+app.use(cors({
+  origin: '*', // Allows access from all origins
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], // Customize methods as needed
+  allowedHeaders: ['Content-Type', 'Authorization'], // Customize headers as needed
+}));
 app.use(express.json());
 app.use(cookieParser());
 app.use(bodyParser.json({ limit: "1024mb" }));
