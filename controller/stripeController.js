@@ -9,7 +9,7 @@ exports.checkout = async (req, res) => {
     try {
         const { priceId, userId } = req.body;
         console.log("priceID", priceId);
-        const planDuration = priceId === "price_1QBskbJpjKGzAGnrmefpvjeu" ? 30 : priceId === "price_1QCDg1JpjKGzAGnr1kND8zrv" ? 90 : priceId === "" ?  120 : 0;
+        const planDuration = priceId === "price_1QF7HcJpjKGzAGnrxO0iYh5T" ? 30 : priceId === "price_1QF7HsJpjKGzAGnrtb3ilHjh" ? 90 : priceId === "price_1QDle3JpjKGzAGnrk747qdyG" ?  365 : 0;
 
         // Check if the user already has an active subscription
         const existingSubscription = await Subscription.findOne({ userId }).sort({ createdAt: -1 });
@@ -38,8 +38,8 @@ exports.checkout = async (req, res) => {
                 price: priceId,
                 quantity: 1,
             }],
-            success_url: 'http://localhost:5173/Congratulationsplus',
-            cancel_url: 'http://localhost:5173/failureurl',
+            success_url: process.env.SUCCESS_URL,
+            cancel_url: process.env.FAILURE_URL,
         });
         console.log("session", session)
         console.log("planduration", planDuration);

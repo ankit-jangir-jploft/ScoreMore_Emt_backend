@@ -11,7 +11,7 @@ const { upload } = require('../middleware/multer');
 router.post('/login', adminController.signInWithPassword);
 
 router.post("/dashboardAPi", adminController.getDashboardData);
-router.get("/userList", adminController.getAllUsers);
+router.post("/userList", adminController.getAllUsers);
 
 router.patch("/deactivateUser/:id", adminController.deactivateUser);
 router.patch("/unblockUser/:id", adminController.unblockUser);
@@ -24,13 +24,13 @@ router.get("/exportUserExcel", adminController.userExcel);
 // add or edit subscriptiuon route 
 
 router.post('/addSubscription', adminController.createSubscription);
-
+router.delete("/deleteSubscription/:id", adminController.deleteSubscription);
 router.put('/editsubscription/:id', adminController.updateSubscriptionPrice);
 router.get('/getAllSubscriptions', adminController.getAllSubscription);
 router.get("/getSubscriptionById/:id", adminController.getSubscriptionById);
 
 
 //flkashcard
-router.get("/getAllFlashcard", adminController.getAllFlashcards)
+router.get("/getAllFlashcard", adminController.getAllFlashcards);
 
 module.exports = router;
