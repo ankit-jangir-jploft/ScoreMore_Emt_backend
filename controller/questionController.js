@@ -1107,10 +1107,7 @@ exports.getQuestionById = async (req, res) => {
 exports.updateQuestion = async (req, res) => {
   const { creatorId, question, options, correctOption, subject, level, explanation, tags, isActive } = req.body;
 
-  // Create an object to hold the updates
   const updates = {};
-
-  // Check which fields are present in the request body and add them to the updates object
   if (creatorId) updates.creatorId = creatorId;
   if (question) updates.question = question;
   if (correctOption) updates.correctOption = correctOption;
@@ -1118,29 +1115,27 @@ exports.updateQuestion = async (req, res) => {
   if (level) updates.level = level;
   if (explanation) updates.explanation = explanation;
   if (tags) updates.tags = tags;
-  if (typeof isActive === 'boolean') updates.isActive = isActive; // Check for boolean type
+  if (typeof isActive === 'boolean') updates.isActive = isActive;
 
   try {
-    // Fetch the existing question
     const existingQuestion = await Question.findById(req.params.id);
 
     if (!existingQuestion) {
       return res.status(404).json({ message: "Question not found" });
     }
 
-    // Merge existing options with new options
+    // Safely merge existing options with new options
     if (options) {
-      // Keep existing options and add/update new options
       updates.options = {
-        ...existingQuestion.options, // Keep existing options
-        ...options // Add/update new options
+        ...existingQuestion.options.toObject(), // Convert to plain object to avoid metadata
+        ...options // Merge with new options
       };
     }
 
     const updatedQuestion = await Question.findByIdAndUpdate(
-      req.params.id, // The ID from the URL parameter
-      updates, // Only the fields that were provided will be updated
-      { new: true, runValidators: true } // Options to return the updated document and run validation
+      req.params.id,
+      updates,
+      { new: true, runValidators: true }
     );
 
     return res.status(200).json({
@@ -1153,6 +1148,7 @@ exports.updateQuestion = async (req, res) => {
     return res.status(500).json({ message: "Error updating question", error: error.message });
   }
 };
+
 
 
 exports.deleteQuestion = async (req, res) => {

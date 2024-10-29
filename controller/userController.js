@@ -167,7 +167,7 @@ exports.signInWithPassword = async (req, res) => {
         message: "Account is inactive or email not verified.",
         success: false,
       });
-    }
+    };
 
     // Generate JWT token
     const tokenData = { userId: user._id };
@@ -180,6 +180,7 @@ exports.signInWithPassword = async (req, res) => {
       email: user.email,
       role: user.role,
       isActive: user.isActive,
+      isBlocked : user.isBlocked,
       isEmailVerified: user.isEmailVerified,
       mobileNumber: user.mobileNumber,
     };
@@ -440,21 +441,32 @@ exports.socialLogin = async (req, res) => {
 
 exports.forgotPassword = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, alternateEmail } = req.body;
 
     // Validate input
     if (!email) {
       return res.status(400).json({
-        message: "Email is required!",
+        message: "Primary email is required!",
         success: false,
       });
     }
 
-    // Find the user
+    // Find the user by primary email
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(404).json({
         message: "User not found!",
+        success: false,
+      });
+    }
+
+    // Determine the email to send OTP to
+    const targetEmail = alternateEmail || email;
+
+    // Check if alternate email is valid and different from primary (optional)
+    if (alternateEmail && alternateEmail === email) {
+      return res.status(400).json({
+        message: "Alternate email should be different from the primary email.",
         success: false,
       });
     }
@@ -471,7 +483,7 @@ exports.forgotPassword = async (req, res) => {
     // Prepare email options
     const mailOptions = {
       from: process.env.MAIL_ID,
-      to: email,
+      to: targetEmail,
       subject: "Password Reset OTP",
       text: `Your OTP for password reset is ${otp}. It is valid for 15 minutes.`,
     };
@@ -486,7 +498,7 @@ exports.forgotPassword = async (req, res) => {
     }
 
     return res.status(200).json({
-      message: "OTP sent to your email!",
+      message: `OTP sent to ${targetEmail}!`,
       success: true,
     });
   } catch (err) {
@@ -497,6 +509,7 @@ exports.forgotPassword = async (req, res) => {
     });
   }
 };
+
 
 exports.resetPassword = async (req, res) => {
   try {

@@ -104,16 +104,16 @@ function formatDate(date) {
     }
   };
   
-exports.getDashboardData = async (req, res) => {
+  exports.getDashboardData = async (req, res) => {
     try {
         const { filters } = req.body;
 
         let startsDate, endsDate;
 
         // Determine the date range for filtering
-        if (filters?.dateRange?.startsDate && filters?.dateRange?.endsDate) {
+        if (filters?.dateRange?.startsDate && filters?.dateRange?.endsdate) {
             startsDate = new Date(filters.dateRange.startsDate);
-            endsDate = new Date(filters.dateRange.endsDate);
+            endsDate = new Date(filters.dateRange.endsdate);
             endsDate.setHours(23, 59, 59, 999); 
         } else {
             startsDate = new Date("1970-01-01");
@@ -232,41 +232,52 @@ exports.getDashboardData = async (req, res) => {
     }
 };
 
+
+// Updated getAllUsers function
 exports.getAllUsers = async (req, res) => {
     try {
-        const { page = 1, limit = 10, startsDate, endsDate } = req.query; // Get pagination and filter parameters
-        const skip = (page - 1) * limit; // Calculate the number of documents to skip
+        const { page = 1, limit = 10, startsDate, endsDate, isActive, isBlocked, subscriptionStatus } = req.query;
+        const skip = (page - 1) * limit;
 
         // Build the query object for filtering
-        const query = {
-            role: "user" // Filter by role
-        };
+        const query = { role: "user" };
 
-        // Add filters based on date range if provided
+        // Date range filter
         if (startsDate && endsDate) {
             query.createdAt = {
-                $gte: new Date(startsDate), // Greater than or equal to startsDate
-                $lte: new Date(endsDate)    // Less than or equal to endsDate
+                $gte: new Date(startsDate),
+                $lte: new Date(endsDate)
             };
         }
 
-        // Fetch users with pagination, filtering, and sort by createdAt in descending order
-        const users = await User.find(query) // Pass the query object to filter users
-            .sort({ createdAt: -1 }) // Sort by createdAt descending
+        // Additional filters
+        if (isActive !== undefined) {
+            query.isActive = isActive === 'true';
+        }
+        if (isBlocked !== undefined) {
+            query.isBlocked = isBlocked === 'true';
+        }
+        if (subscriptionStatus) {
+            query.subscriptionStatus = subscriptionStatus;
+        }
+
+        // Fetch users with pagination, filtering, and sorting
+        const users = await User.find(query)
+            .sort({ createdAt: -1 })
             .skip(skip)
             .limit(Number(limit))
-            .lean(); // Use lean for better performance if you don't need Mongoose documents
+            .lean();
 
         // Count total users for pagination metadata
-        const totalUsers = await User.countDocuments(query); // Count filtered documents
+        const totalUsers = await User.countDocuments(query);
 
         res.status(200).json({
             status: true,
             data: {
                 users,
-                total: totalUsers,
+                totalRecords: totalUsers,
                 page: Number(page),
-                totalPages: Math.ceil(totalUsers / limit) // Calculate total pages
+                totalPages: Math.ceil(totalUsers / limit)
             }
         });
     } catch (err) {
@@ -277,6 +288,9 @@ exports.getAllUsers = async (req, res) => {
         });
     }
 };
+
+
+
 
 
 
@@ -293,7 +307,8 @@ exports.deactivateUser = async (req, res) => {
         }
 
         // Deactivate the user
-        user.isBlocked = true; 
+        user.isBlocked = true;
+        user.isActive = false;
         await user.save();
         console.log("user after block", user)
 
@@ -324,6 +339,7 @@ exports.unblockUser = async (req, res) => {
 
         // Reactivate the user
         user.isBlocked = false; 
+        user.isActive = true;
         await user.save();
         console.log("user after unblock", user)
 
@@ -624,6 +640,48 @@ exports.getSubscriptionById = async (req, res) => {
     });
   }
 }
+
+exports.deleteSubscription = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const subscription = await SubscriptionSchema.findById(id);
+        console.log("subscription", subscription)
+        
+        if (!subscription) {
+            return res.status(404).json({
+                status: false,
+                message: "Subscription not found"
+            });
+        }
+
+        // Check if any users are using this subscription plan
+        const userSubscription = await Subscription.find({ subscriptionPlan: subscription.stripePriceId });
+        console.log("userSubsc", userSubscription);
+
+        if (userSubscription.length > 0) {
+            return res.status(200).json({
+                status: true,
+                message: "Subscription is already in use. You cannot delete this subscription, but you can add a new price for the same subscription."
+            });
+        }
+
+        // If no users are using this subscription, proceed to delete
+        await SubscriptionSchema.findByIdAndDelete(id);
+        
+        res.status(200).json({
+            status: true,
+            message: "Subscription deleted successfully"
+        });
+        
+    } catch (error) {
+        console.error("error", error);
+        res.status(500).json({
+            status: false,
+            message: "An error occurred while deleting the subscription"
+        });
+    }
+};
+
 
 
 // flashcard

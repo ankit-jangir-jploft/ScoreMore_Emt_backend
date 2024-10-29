@@ -237,7 +237,33 @@ exports.getAllFlashcards = async (req, res) => {
         error: error.message,
       });
     }
-  };
+};
+
+exports.getFlashcardById = async (req, res) => {
+    try {
+        const {id} = req.params;
+        const flashcard = await Flashcard.findById(id);
+        if(!flashcard) {
+            res.status(404).json({
+                success: false,
+                message : "flashcard not found"
+            })
+        };
+
+        res.status(200).json({
+            success : true,
+            message : "Flashcard found successfully",
+            data : flashcard
+        })
+        
+    } catch (error) {
+        console.log("error", error);
+        res.status(500).json({
+            message : "Internal server error",
+            success : false
+        })
+    }
+}
   
 
 // apis for flashcards yo

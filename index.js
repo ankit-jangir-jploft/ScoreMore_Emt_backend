@@ -16,11 +16,16 @@ require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 4748;
 
-app.use(cors({
-  origin: '*', // Allows access from all origins
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'], // Customize methods as needed
-  allowedHeaders: ['Content-Type', 'Authorization'], // Customize headers as needed
-}));
+// CORS setup
+const corsOptions = {
+    origin: (origin, callback) => {
+        // Allow all origins
+        callback(null, true);
+    },
+    credentials: true, // Allow credentials (cookies, authorization headers, etc.)
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 app.use(bodyParser.json({ limit: "1024mb" }));
