@@ -145,6 +145,7 @@ exports.signInWithPassword = async (req, res) => {
 
     // Find the user by email
     let user = await User.findOne({ email });
+    console.log("user", user)
     if (!user) {
       return res.status(400).json({
         message: "Incorrect email or password!",
@@ -157,6 +158,13 @@ exports.signInWithPassword = async (req, res) => {
     if (!isPasswordMatch) {
       return res.status(400).json({
         message: "Incorrect email or password!",
+        success: false,
+      });
+    }
+
+    if(user.isBlocked){
+      return res.status(403).json({
+        message: "You are blocked by admin please contact support team !!",
         success: false,
       });
     }
@@ -218,6 +226,13 @@ exports.signInWithOTP = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         message: "User not found!",
+        success: false,
+      });
+    }
+    
+    if(user.isBlocked){
+      return res.status(403).json({
+        message: "You are blocked by admin please contact support team !!",
         success: false,
       });
     }
@@ -312,6 +327,14 @@ exports.verifyOTP = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         message: "User not found!",
+        success: false,
+      });
+    }
+
+    
+    if(user.isBlocked){
+      return res.status(403).json({
+        message: "You are blocked by admin please contact support team !!",
         success: false,
       });
     }
@@ -460,6 +483,14 @@ exports.forgotPassword = async (req, res) => {
       });
     }
 
+    
+    if(user.isBlocked){
+      return res.status(403).json({
+        message: "You are blocked by admin please contact support team !!",
+        success: false,
+      });
+    }
+
     // Determine the email to send OTP to
     const targetEmail = alternateEmail || email;
 
@@ -509,7 +540,6 @@ exports.forgotPassword = async (req, res) => {
     });
   }
 };
-
 
 exports.resetPassword = async (req, res) => {
   try {
@@ -563,9 +593,6 @@ exports.resetPassword = async (req, res) => {
     });
   }
 };
-
-
-
 
 exports.updateUserStatus = async (req, res) => {
   try {
@@ -837,6 +864,7 @@ exports.myProfile = async (req, res) => {
       role: user.role,
       isEmailVerified: user.isEmailVerified,
       isActive: user.isActive,
+      isBlocked : user.isBlocked,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       mobileNumber: user.mobileNumber,
@@ -910,6 +938,9 @@ exports.editProfile = async (req, res) => {
   }
 };
 
+
+
+
 exports.getUserDetail = async (req, res) => {
   const { id } = req.params; // Get userId from the request parameters
 
@@ -925,13 +956,27 @@ exports.getUserDetail = async (req, res) => {
       });
     }
 
-    // Return user details, excluding sensitive information
+    // Fetch count of tests based on testType for the user
+    const testCounts = await TestResult.aggregate([
+      { $match: { userId: user._id } }, // Match documents by userId
+      {
+        $group: {
+          _id: "$testType", // Group by testType
+          count: { $sum: 1 } // Count each occurrence
+        }
+      }
+    ]);
+
+    // Prepare user details excluding sensitive information
     const { password, confirmPassword, ...userDetails } = user._doc; // Exclude password and confirmPassword
 
     return res.status(200).json({
       message: "User details retrieved successfully",
       success: true,
-      data: userDetails,
+      data: {
+        userDetails,
+        testCounts // Include the count of tests based on testType
+      },
     });
   } catch (error) {
     console.error("Error fetching user details", error);
@@ -941,6 +986,8 @@ exports.getUserDetail = async (req, res) => {
     });
   }
 };
+
+
 
 
 // save  user Question data
@@ -1480,7 +1527,6 @@ exports.getSubscriptionDetails = async (req, res) => {
   }
 };
 
-
 exports.getUserTransactionHistory = async (req, res) => {
   try {
     const { id } = req.params; 
@@ -1597,8 +1643,6 @@ exports.getInvoicetemplate = async (req, res) => {
   }
 };
 
-
-
 const getInvoiceData = async (invoiceId, subscription, clientDetails) => {
   // Calculate total amount based on subscription payment amount
   const totalAmount = subscription.paymentAmount; // You can adjust this if needed
@@ -1623,8 +1667,6 @@ const getInvoiceData = async (invoiceId, subscription, clientDetails) => {
       companyLogo: '/path/to/logo.png' // Change the path accordingly
   };
 };
-
-
 
 const generatePDFBuffer = async (html, invoiceId) => {
   const browser = await pdf.launch();
