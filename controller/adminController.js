@@ -289,11 +289,6 @@ exports.getAllUsers = async (req, res) => {
     }
 };
 
-
-
-
-
-
 exports.deactivateUser = async (req, res) => {
     try {
         const { id } = req.params;  // Get user ID from the request (assumes user authentication middleware)
@@ -728,6 +723,37 @@ exports.getAllFlashcards = async (req, res) => {
         });
     }
 };
+
+
+// question
+exports.getAllSubjects = async (req, res) => {
+    try {
+        // Fetch distinct subjects from questions in the database
+        const allSubjects = await Question.distinct('subject'); // You can filter by isActive if needed
+
+        if (allSubjects.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "No subjects found",
+            });
+        }
+
+        // Send the response with the found subjects
+        res.status(200).json({
+            success: true,
+            subjects: allSubjects, // Return the subjects array
+        });
+        
+    } catch (error) {
+        console.error("Error fetching subjects:", error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching subjects in question',
+            error: error.message,
+        });
+    }
+};
+
 
 
 

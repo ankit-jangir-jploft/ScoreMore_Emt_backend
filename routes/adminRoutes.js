@@ -33,4 +33,7 @@ router.get("/getSubscriptionById/:id", adminController.getSubscriptionById);
 //flkashcard
 router.get("/getAllFlashcard", adminController.getAllFlashcards);
 
+// question
+router.get("/getAllSubjects", adminController.getAllSubjects);
+
 module.exports = router;
