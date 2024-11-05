@@ -20,12 +20,9 @@ function formatDate(date) {
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 }
+// Adjust path as needed
 
-
-
- // Adjust path as needed
-
- exports.signInWithPassword = async (req, res) => {
+exports.signInWithPassword = async (req, res) => {
     try {
       const { email, password } = req.body;
       console.log("req, body", req.body);
@@ -102,9 +99,9 @@ function formatDate(date) {
         success: false,
       });
     }
-  };
+};
   
-  exports.getDashboardData = async (req, res) => {
+exports.getDashboardData = async (req, res) => {
     try {
         const { filters } = req.body;
 
@@ -231,7 +228,6 @@ function formatDate(date) {
         });
     }
 };
-
 
 // Updated getAllUsers function
 exports.getAllUsers = async (req, res) => {
@@ -677,8 +673,6 @@ exports.deleteSubscription = async (req, res) => {
     }
 };
 
-
-
 // flashcard
 exports.getAllFlashcards = async (req, res) => {
     const { page = 1, limit = 9, subject, level } = req.query; // Extracting query parameters
@@ -723,7 +717,6 @@ exports.getAllFlashcards = async (req, res) => {
         });
     }
 };
-
 
 // question
 exports.getAllSubjects = async (req, res) => {

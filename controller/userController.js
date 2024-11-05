@@ -13,6 +13,7 @@ const FilteredQuestion = require("../models/FilterQuestionTestData");
 const ejs = require("ejs");
 const moment = require("moment");
 const fs = require('fs');
+const Contact = require("../models/Contact");
 
 // Adjust the paths as per your project structure
 const templatePath = path.join(__dirname, '..', 'views', 'templates', 'transactionInvoice.ejs');
@@ -938,9 +939,6 @@ exports.editProfile = async (req, res) => {
   }
 };
 
-
-
-
 exports.getUserDetail = async (req, res) => {
   const { id } = req.params; // Get userId from the request parameters
 
@@ -986,9 +984,6 @@ exports.getUserDetail = async (req, res) => {
     });
   }
 };
-
-
-
 
 // save  user Question data
 
@@ -1569,6 +1564,19 @@ exports.getUserTransactionHistory = async (req, res) => {
     });
   }
 };
+
+exports.contactUs = async (req, res) => {
+  const { name, email, message } = req.body;
+
+  try {
+      const newContact = new Contact({ name, email, message });
+      await newContact.save();
+      return res.status(201).json({ success: true, message: 'Thank you for contacting us. Our support team will get back to you shortly.' });
+  } catch (error) {
+      console.error('Error saving contact message:', error);
+      return res.status(500).json({ success: false, message: 'Failed to save contact message.' });
+  }
+}
 
 
 
