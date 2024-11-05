@@ -40,4 +40,8 @@ router.get("/transactionHistory/:id", userController.getUserTransactionHistory);
 router.get("/invoice/:id", userController.getInvoicetemplate);
 
 
+// user contact us 
+router.post("/contact", userController.contactUs);
+
+
 module.exports = router;
