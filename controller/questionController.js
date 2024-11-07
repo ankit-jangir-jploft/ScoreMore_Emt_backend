@@ -793,26 +793,27 @@ exports.filterQuestions = async (req, res) => {
         data: finalQuestions,
         timeLimit: timeLimit,
       });
-    } else {
+    } 
+    else {
       const userPreviousQuestions = await UserQuestionData.find({ userId });
       console.log("userPrevious Questions---->", userPreviousQuestions);
-
+    
       // Map user question data for easier lookup
       const userQuestionMap = userPreviousQuestions.reduce((acc, question) => {
         acc[question.questionId.toString()] = question; // Ensure we're using the questionId for lookup as a string
         return acc;
       }, {});
       console.log("userQuestionMap", userQuestionMap);
-
+    
       const question = await Question.find(); // Fetch the question data
-
+    
       // Format the data
       const questionsData = question.map(question => {
         // Convert options from Map to an array of objects
         const formattedOptions = Array.from(question.options.entries()).map(([key, value]) => {
           return { [key]: value }; // Create an object for each option
         });
-
+    
         return {
           _id: question._id.toString(), // Ensure _id is treated as a string
           question: question.question,
@@ -833,7 +834,7 @@ exports.filterQuestions = async (req, res) => {
           __v: question.__v
         };
       });
-
+    
       // Filter questions based on subjects and levels
       let filteredQuestions = questionsData.filter((question) => {
         const subjectKeys = Object.keys(subjects).filter(key => subjects[key]);
@@ -841,48 +842,66 @@ exports.filterQuestions = async (req, res) => {
         const matchesLevel = !level || question.level === level;
         return matchesSubject && matchesLevel && question.isActive;
       });
-
+    
       console.log("Filtered Questions after subject/level filter:", JSON.stringify(filteredQuestions, null, 2));
-
-      // Further filter based on questionType (e.g., marked, incorrect, unused, etc.)
+    
+      // Create an array to store all matching questions
+      let matchedQuestions = new Map(); // Use Map to ensure uniqueness by questionId
+    
       // Further filter based on questionType (e.g., marked, incorrect, unused, etc.)
       if (Object.keys(questionType).length > 0) {
-        filteredQuestions = filteredQuestions.filter((question) => {
-          const userQuestion = userQuestionMap[question._id]; // Ensure question._id is used for lookup
-
-          // Filter for incorrectly answered questions
-          const matchesIncorrect = questionType.incorrect ? userQuestion && !userQuestion.isCorrect : true;
-
-          // Filter for marked questions
-          const matchesMarked = questionType.marked ? userQuestion && userQuestion.isMarked : true;
-
-          // Filter for unused questions (either no record exists or isUsed is false)
-          const matchesUnused = questionType.unused ? !userQuestion || !userQuestion.isUsed : true;
-
-          // Only return the questions that meet all criteria
-          return matchesIncorrect && matchesMarked && matchesUnused;
-        });
+        // First filter for unused questions
+        if (questionType.unused) {
+          filteredQuestions.forEach((question) => {
+            const userQuestion = userQuestionMap[question._id];
+            if (!userQuestion || !userQuestion.isUsed) {
+              matchedQuestions.set(question._id, question); // Add to map (ensures uniqueness)
+            }
+          });
+        }
+    
+        // Then filter for incorrect questions
+        if (questionType.incorrect) {
+          filteredQuestions.forEach((question) => {
+            const userQuestion = userQuestionMap[question._id];
+            if (userQuestion && !userQuestion.isCorrect) {
+              matchedQuestions.set(question._id, question); // Add to map (ensures uniqueness)
+            }
+          });
+        }
+    
+        // Then filter for marked questions
+        if (questionType.marked) {
+          filteredQuestions.forEach((question) => {
+            const userQuestion = userQuestionMap[question._id];
+            if (userQuestion && userQuestion.isMarked) {
+              matchedQuestions.set(question._id, question); // Add to map (ensures uniqueness)
+            }
+          });
+        }
       }
-
-
-      console.log("Filtered Questions after questionType filter:", JSON.stringify(filteredQuestions, null, 2));
-
+    
+      // Convert matchedQuestions map back to an array
+      const finalFilteredQuestions = Array.from(matchedQuestions.values());
+    
+      console.log("Filtered Questions after questionType filter:", JSON.stringify(finalFilteredQuestions, null, 2));
+    
       // Shuffle the filtered questions
-      filteredQuestions = shuffleArray(filteredQuestions);
-      console.log("Filtered Questions after shuffling:======", filteredQuestions);
-
+      const shuffledQuestions = shuffleArray(finalFilteredQuestions);
+      console.log("Filtered Questions after shuffling:======", shuffledQuestions);
+    
       // Slice the array to match the requested number of questions, ensuring it doesn't exceed the length
-      const result = filteredQuestions.slice(0, Math.min(numberOfQuestions, filteredQuestions.length));
+      const result = shuffledQuestions.slice(0, Math.min(numberOfQuestions, shuffledQuestions.length));
       console.log("Resulting Questions:", result);
-
+    
       // Save filtered questions in the database
       const filteredQuestionEntry = new FilteredQuestion({
         testId, // Save the testId
         questions: result,
       });
-
+    
       await filteredQuestionEntry.save(); // Save to the database
-
+    
       // Send the response back to the client, including the timeLimit
       res.status(200).json({
         success: true,
@@ -890,8 +909,8 @@ exports.filterQuestions = async (req, res) => {
         data: result,
         timeLimit: timeLimit, // Include timeLimit in the response
       });
-
     }
+    
 
   } catch (error) {
     console.error("Error filtering questions:", error);

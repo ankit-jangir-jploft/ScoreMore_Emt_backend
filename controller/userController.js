@@ -1065,6 +1065,34 @@ exports.userQuestionData = async (req, res) => {
   }
 };
 
+
+exports.findquestionMarkSatatus = async (req, res) => {
+  const { userId, questionId } = req.body;
+
+    if (!userId || !questionId) {
+        return res.status(400).json({ message: 'userId and questionId are required' });
+    }
+
+    try {
+        // Fetch the latest submission of the user for the given question
+        const submission = await UserQuestionData.findOne({
+            userId,
+            questionId,
+        }).sort({ createdAt: -1 }); // Assuming there's a submissionDate field to sort by latest submission
+       console.log("submission", submission);
+        if (submission) {
+            return res.status(200).json({
+                data: submission, // Return the isMarked field from the latest submission
+            });
+        } else {
+            return res.status(404).json({ message: 'Submission not found for this question.' });
+        }
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Server error while fetching submission.' });
+    }
+};
+
 // Function to update question percentages
 const updateQuestionPercentages = async (questionId) => {
   // Fetch all user question data related to this question

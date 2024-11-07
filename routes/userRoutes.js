@@ -28,6 +28,7 @@ router.post("/logout", isAuthenticated, userController.logout);
 
 // User question route
 router.post("/userQuestionData", isAuthenticated, userController.userQuestionData);
+router.post("/findquestionStatus", userController.findquestionMarkSatatus);
 router.post("/updateQuestion", userController.updateQuestionData)
 router.post("/submitTestResult", userController.submitTestResults);
 router.post("/lastSubmitQuestion", userController.lastSubmitQuestion)
