@@ -9,7 +9,7 @@ exports.checkout = async (req, res) => {
     try {
         const { priceId, userId } = req.body;
         console.log("priceID", priceId);
-        const planDuration = priceId === "price_1QF7HcJpjKGzAGnrxO0iYh5T" ? 30 : priceId === "price_1QF7HsJpjKGzAGnrtb3ilHjh" ? 90 : priceId === "price_1QDle3JpjKGzAGnrk747qdyG" ?  365 : 0;
+        const planDuration = priceId === "price_1QHNA1JpjKGzAGnrwEWMpjpi" ? 30 : priceId === "price_1QFDhaJpjKGzAGnr7jSEIpaQ" ? 90 : priceId === "price_1QDle3JpjKGzAGnrk747qdyG" ?  365 : 0;
 
         // Check if the user already has an active subscription
         const existingSubscription = await Subscription.findOne({ userId }).sort({ createdAt: -1 });
@@ -52,7 +52,7 @@ exports.checkout = async (req, res) => {
             currency: session.currency,
             subscriptionStatus: 'pending', // Initial status until confirmed
             paymentMethod: 'card',
-            subscriptionPlan: priceId === "price_1QBskbJpjKGzAGnrmefpvjeu" ? "1 Month Subscription" : priceId === "price_1QCDg1JpjKGzAGnr1kND8zrv" ? "3 month Subscription" : priceId === "" ? "12 month subscription" : "" ,
+            subscriptionPlan: priceId === "price_1QHNA1JpjKGzAGnrwEWMpjpi" ? "1 Month Subscription" : priceId === "price_1QFDhaJpjKGzAGnr7jSEIpaQ" ? "3 month Subscription" : priceId === "price_1QDle3JpjKGzAGnrk747qdyG" ? "12 month subscription" : "" ,
             startedAt: new Date(),
             expiresAt: new Date(Date.now() + planDuration * 24 * 60 * 60 * 1000), // Set expiration date based on plan duration
         });
