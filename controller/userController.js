@@ -23,9 +23,9 @@ const publicDirectory = path.join(__dirname, '..', 'public');
 
 exports.signup = async (req, res) => {
   try {
-    console.log("req.body",req.body);
+    // console.log("req.body",req.body);
     const { firstName, lastName, email, password, confirmPassword, role = "user" } = req.body;
-    console.log("fullname, email, phoneNumber, password ", firstName, lastName, email, password, confirmPassword);
+    // console.log("fullname, email, phoneNumber, password ", firstName, lastName, email, password, confirmPassword);
 
     // Check for required fields
     if (!email || !confirmPassword || !password) {
@@ -113,7 +113,7 @@ exports.verifyEmail = async (req, res) => {
 
   try {
     const user = await User.findById(token);
-    console.log("user",user)
+    // console.log("user",user)
     if (!user) {
       return res.status(404).json({ message: "User not found.", success: false });
     }
@@ -146,7 +146,7 @@ exports.signInWithPassword = async (req, res) => {
 
     // Find the user by email
     let user = await User.findOne({ email });
-    console.log("user", user)
+    // console.log("user", user)
     if (!user) {
       return res.status(400).json({
         message: "Incorrect email or password!",
@@ -257,7 +257,7 @@ exports.signInWithOTP = async (req, res) => {
     const otp = crypto.randomInt(100000, 999999).toString(); // 6-digit OTP
     const otpExpiration = Date.now() + 15 * 60 * 1000; // 15 minutes from now
 
-    console.log("Generated otpExpiration:", otpExpiration);
+    // console.log("Generated otpExpiration:", otpExpiration);
 
     // Store OTP and its expiration time in the user's document
     user.otp = otp;
@@ -288,7 +288,7 @@ exports.signInWithOTP = async (req, res) => {
       subject: "Your OTP Code",
       text: `Your OTP code is ${otp}. It is valid for 15 minutes.`,
     };
-    console.log("Mail options:", mailOptions);
+    // console.log("Mail options:", mailOptions);
 
     // Send OTP via email
     const emailSent = await sendEmail(mailOptions);
@@ -349,9 +349,9 @@ exports.verifyOTP = async (req, res) => {
     }
 
     // Check if the OTP has expired
-    console.log("useerrrtrrr", user)
-    console.log("user.otpExpiration", user.otpExpiration);
-    console.log("Date.now", Date.now())
+    // console.log("useerrrtrrr", user)
+    // console.log("user.otpExpiration", user.otpExpiration);
+    // console.log("Date.now", Date.now())
     if (Date.now() > user.otpExpiration) {
       return res.status(400).json({
         message: "OTP has expired!",
@@ -403,7 +403,7 @@ exports.socialLogin = async (req, res) => {
 
     // Check if user exists with the given email and socialId
     let user = await User.findOne({ email, socialId, isDeleted: false });
-    console.log("user", user);
+    // console.log("user", user);
 
     // Check if the user is blocked
     if (user?.isBlocked) {
@@ -432,12 +432,12 @@ exports.socialLogin = async (req, res) => {
       lastName,
       registrationType,
     });
-    console.log("newuser", newUser)
+    // console.log("newuser", newUser)
 
     // Save new user to the database
     await newUser.save();
 
-    console.log("it hits");
+    // console.log("it hits");
 
     // Generate token for the new user
     const tokenData = { userId: user._id };
@@ -544,10 +544,10 @@ exports.forgotPassword = async (req, res) => {
 
 exports.resetPassword = async (req, res) => {
   try {
-    console.log("req.body", req.body)
+    // console.log("req.body", req.body)
     const { otp, newPassword, email } = req.body;
     
-    console.log("req.otp", otp, newPassword,email )
+    // console.log("req.otp", otp, newPassword,email )
 
     // Validate input
     if (!email|| !otp || !newPassword) {
@@ -744,7 +744,7 @@ exports.myProfile = async (req, res) => {
   try {
     // Extract token from the Authorization header
     const token = req.headers.authorization?.split(" ")[1];
-    console.log("Token in myProfile:", token);
+    // console.log("Token in myProfile:", token);
 
     if (!token) {
       return res.status(401).json({
@@ -758,12 +758,12 @@ exports.myProfile = async (req, res) => {
     const userId = decoded.userId; // Assuming userId is stored in the token
 
     // Log the user ID
-    console.log("Decoded User ID:", userId);
+    // console.log("Decoded User ID:", userId);
 
     // Extract filters and pagination from req.body and req.query
     const { dateRange, testType, newTestResult } = req.body; // Assuming newTestResult is passed in the request body
     const { page = 1, limit = 10 } = req.query; // Default to page 1 and limit 10
-    console.log("DateRange:", dateRange, "TestType:", testType);
+    // console.log("DateRange:", dateRange, "TestType:", testType);
 
     // Find the user profile without aggregation
     const user = await User.findById(userId).select('-password -otp -otpExpiration');
@@ -776,13 +776,13 @@ exports.myProfile = async (req, res) => {
 
     // Find the user's test results
     let testResults = await TestResult.find({ userId: userId }).lean();
-    console.log("Initial Test Results:", testResults); // Log initial test results
+    // console.log("Initial Test Results:", testResults); // Log initial test results
 
     // Prepend the new test result to the testResults array if it exists
     if (newTestResult) {
       // Assuming newTestResult has the same structure as a TestResult
       testResults = [newTestResult, ...testResults];
-      console.log("Test Results after adding new test at the beginning:", testResults);
+      // console.log("Test Results after adding new test at the beginning:", testResults);
     }
 
     // Filter test results by date range if provided
@@ -790,17 +790,17 @@ exports.myProfile = async (req, res) => {
       const startDate = moment(dateRange.from).startOf('day').toDate();
       const endDate = moment(dateRange.to).endOf('day').toDate(); // Covers the entire day
 
-      console.log("Start Date:", startDate);
-      console.log("End Date:", endDate);
+      // console.log("Start Date:", startDate);
+      // console.log("End Date:", endDate);
 
       testResults = testResults.filter(result => {
         const testDate = moment(result.date, 'YYYY-MM-DD').toDate(); // Convert 'date' string to Date object
         const isInRange = moment(testDate).isBetween(startDate, endDate, null, '[]'); // Include both start and end dates
-        console.log(`Test Result ID: ${result._id}, Date: ${testDate}, In Range: ${isInRange}`);
+        // console.log(`Test Result ID: ${result._id}, Date: ${testDate}, In Range: ${isInRange}`);
         return isInRange;
       });
 
-      console.log("Filtered Test Results by Date Range:", testResults); // Log filtered test results
+      // console.log("Filtered Test Results by Date Range:", testResults); // Log filtered test results
     } else {
       console.log("No date range provided; skipping date filtering.");
     }
@@ -808,14 +808,14 @@ exports.myProfile = async (req, res) => {
     // Filter test results by test type if provided
     if (Array.isArray(testType) && testType.length > 0) {
       testResults = testResults.filter(result => testType.includes(result.testType));
-      console.log("Filtered Test Results by Test Type:", testResults); // Log filtered test results
+      // console.log("Filtered Test Results by Test Type:", testResults); // Log filtered test results
     } else {
-      console.log("No test type provided; skipping test type filtering.");
+      // console.log("No test type provided; skipping test type filtering.");
     }
 
     // Sort test results by createdAt in descending order
     testResults.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    console.log("Sorted Test Results by createdAt:", testResults); // Log sorted test results
+    // console.log("Sorted Test Results by createdAt:", testResults); // Log sorted test results
 
     // Parse the limit as an integer
     const parsedLimit = parseInt(limit, 10);
@@ -990,7 +990,7 @@ exports.getUserDetail = async (req, res) => {
 
 exports.userQuestionData = async (req, res) => {
   try {
-    console.log("req.body", req.body);
+    // console.log("req.body", req.body);
     const { 
       userId, 
       questionId, 
@@ -1015,7 +1015,7 @@ exports.userQuestionData = async (req, res) => {
       testId, 
       questionId 
     });
-    console.log("existingQuestionData", existingQuestionData)
+    // console.log("existingQuestionData", existingQuestionData)
 
     if (existingQuestionData) {
       // If the question exists, update it
@@ -1029,7 +1029,7 @@ exports.userQuestionData = async (req, res) => {
 
       // Save the updated question data
       await existingQuestionData.save();
-      console.log("existing data question save", existingQuestionData);
+      // console.log("existing data question save", existingQuestionData);
 
       // Update question percentages
       await updateQuestionPercentages(questionId);
@@ -1049,7 +1049,7 @@ exports.userQuestionData = async (req, res) => {
         isOmitted: isOmitted || false,
         testId 
       });
-      console.log("question data", questionData);
+      // console.log("question data", questionData);
 
       // Save the new data
       await questionData.save();
@@ -1079,7 +1079,7 @@ exports.findquestionMarkSatatus = async (req, res) => {
             userId,
             questionId,
         }).sort({ createdAt: -1 }); // Assuming there's a submissionDate field to sort by latest submission
-       console.log("submission", submission);
+      //  console.log("submission", submission);
         if (submission) {
             return res.status(200).json({
                 data: submission, // Return the isMarked field from the latest submission
@@ -1186,23 +1186,23 @@ exports.updateQuestionData = async (req, res) => {
 
 exports.submitTestResults = async (req, res) => {
   try {
-    console.log("test req.body", req.body);
+    // console.log("test req.body", req.body);
     const { userId, testId, testType } = req.body;
 
     // Fetch all questions related to the test
     const filteredQuestions = await FilteredQuestion.find({ testId });
-    console.log("filteredQuestions with testID ", filteredQuestions)
+    // console.log("filteredQuestions with testID ", filteredQuestions)
     if (!filteredQuestions || filteredQuestions.length === 0) {
       return res.status(404).json({
         success: false,
         message: "No questions found for the given testId.",
       });
     }
-    console.log("Total filtered questions: ", filteredQuestions);
+    // console.log("Total filtered questions: ", filteredQuestions);
 
     // Fetch user's question data
     const userQuestionData = await UserQuestionData.find({ userId, testId });
-    console.log("User question data: ", userQuestionData);
+    // console.log("User question data: ", userQuestionData);
 
     // Initialize counters
     let totalCorrect = 0;
@@ -1222,7 +1222,7 @@ exports.submitTestResults = async (req, res) => {
     filteredQuestions.forEach((testQuestion) => {
       testQuestion.questions.forEach((question) => {
         const userAnswer = userAnswersMap[question._id.toString()];
-        console.log("User Answer: ", userAnswer);
+        // console.log("User Answer: ", userAnswer);
 
         if (userAnswer) {
           // If the question was attempted
@@ -1282,7 +1282,7 @@ exports.submitTestResults = async (req, res) => {
       totalOmittedQuestions: totalOmitted,
       score,
     });
-    console.log("New test result: ", newTestResult);
+    // console.log("New test result: ", newTestResult);
 
     // Save the test result to the database
     await newTestResult.save();
@@ -1307,11 +1307,11 @@ exports.lastSubmitQuestion = async (req, res) => {
 
     // Find the last submitted question by the user for the specified test
     const lastQuestionsss = await UserQuestionData.find({ userId, testId });
-    console.log("lastQuestionsss", lastQuestionsss)
+    // console.log("lastQuestionsss", lastQuestionsss)
     const lastQuestion = await UserQuestionData.find({ userId, testId })
       .sort({ createdAt: -1 }) // Sort by createdAt in descending order
       .exec(); // Use exec() to execute the query
-      console.log("Last submitted question:", lastQuestion);
+      // console.log("Last submitted question:", lastQuestion);
     if (lastQuestion) {
      
       return res.status(200).json({
@@ -1337,11 +1337,11 @@ exports.allExamRecord = async (req, res) => {
   try {
     // Extracting userId from the request body
     const { userId } = req.body;
-    console.log("User ID:", userId);
+    // console.log("User ID:", userId);
 
     // Check if the user has any question data
     const userQuestions = await UserQuestionData.find({ userId }).populate('questionId');
-    console.log("User Questions Found:", userQuestions);
+    // console.log("User Questions Found:", userQuestions);
 
     if (userQuestions.length === 0) {
       return res.status(404).json({
@@ -1384,7 +1384,7 @@ exports.allExamRecord = async (req, res) => {
       },
     ]);
 
-    console.log("Overall Stats Result:", overallStats);
+    // console.log("Overall Stats Result:", overallStats);
 
     // Aggregation pipeline for subject insights
     const subjectInsights = await UserQuestionData.aggregate([
@@ -1439,7 +1439,7 @@ exports.allExamRecord = async (req, res) => {
       },
     ]);
 
-    console.log("Subject Insights Result:", subjectInsights);
+    // console.log("Subject Insights Result:", subjectInsights);
 
     // Define the subjects you're interested in
     const subjects = ["medical", "airway", "cardiology", "trauma", "emsOperations"];
@@ -1447,7 +1447,7 @@ exports.allExamRecord = async (req, res) => {
     // Format subject insights data to include all subjects
     const subjectDataFormatted = subjects.map(subject => {
       const insight = subjectInsights.find(i => i.subject === subject) || { correctAnswered: 0, totalAnswered: 0, percentage: 0 };
-      console.log(`Subject: ${subject}, Insight:`, insight); // Debugging log
+      // console.log(`Subject: ${subject}, Insight:`, insight); // Debugging log
       return {
         subject,
         correctAnswered: insight.correctAnswered,
@@ -1501,11 +1501,14 @@ exports.getSubscriptionDetails = async (req, res) => {
               message: "No subscription found for this user",
           });
       }
+      console.log("subscription", subscription)
 
       // Calculate remaining days
       const currentDate = new Date();
       const expiresAt = new Date(subscription.expiresAt);
+      console.log("cfasfc", expiresAt, currentDate)
       const remainingDays = Math.max(Math.ceil((expiresAt - currentDate) / (1000 * 60 * 60 * 24)), 0); // Ensure no negative values
+      console.log("reaming days", remainingDays)
 
       // Prepare the subscription details to return
       const subscriptionDetails = {
@@ -1573,6 +1576,7 @@ exports.getUserTransactionHistory = async (req, res) => {
       currency: transaction.currency,
       paymentMethod: transaction.paymentMethod,
       subscriptionPlan: transaction.subscriptionPlan,
+      planType : transaction.subscriptionPlan == "price_1QHNA1JpjKGzAGnrwEWMpjpi" ? "1 Month Plan" : transaction.subscriptionPlan == "price_1QFDhaJpjKGzAGnr7jSEIpaQ" ? "3 Month Plan" : transaction.subscriptionPlan == "price_1QDle3JpjKGzAGnrk747qdyG" ? "1 Year Plan" : "no plan", 
       subscriptionStatus: transaction.subscriptionStatus,
       startedAt: transaction.startedAt.toISOString().slice(0, 10), // Format to 'yyyy-mm-dd'
       expiresAt: transaction.expiresAt ? transaction.expiresAt.toISOString().slice(0, 10) : null, 
