@@ -859,7 +859,7 @@ exports.filterQuestions = async (req, res) => {
             }
           });
         }
-    
+      
         // Then filter for incorrect questions
         if (questionType.incorrect) {
           filteredQuestions.forEach((question) => {
@@ -869,7 +869,7 @@ exports.filterQuestions = async (req, res) => {
             }
           });
         }
-    
+      
         // Then filter for marked questions
         if (questionType.marked) {
           filteredQuestions.forEach((question) => {
@@ -879,8 +879,14 @@ exports.filterQuestions = async (req, res) => {
             }
           });
         }
+      } else {
+        // Handle the case where questionType is an empty object
+        // Add all questions to matchedQuestions
+        filteredQuestions.forEach((question) => {
+          matchedQuestions.set(question._id, question); // Add to map (ensures uniqueness)
+        });
       }
-    
+      
       // Convert matchedQuestions map back to an array
       const finalFilteredQuestions = Array.from(matchedQuestions.values());
     
