@@ -1597,6 +1597,57 @@ exports.getUserTransactionHistory = async (req, res) => {
   }
 };
 
+exports.userdailyStreak = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    // Get the most recent test result for the user
+    const lastTestResult = await TestResult.findOne({ userId }).sort({ createdAt: -1 });
+
+    if (!lastTestResult) {
+      return res.status(200).json({
+        success: true,
+        message: 'No test results found for the user.',
+        streakCount: 0,
+      });
+    }
+
+    // Get the current date and calculate the time difference from the last test
+    const currentDate = new Date();
+    const lastTestDate = new Date(lastTestResult.createdAt);
+    const timeDifference = currentDate - lastTestDate;
+
+    // Check if it's within the last 24 hours (in milliseconds)
+    const oneDayInMs = 24 * 60 * 60 * 1000;
+
+    // Determine if the streak is broken or if it should continue
+    if (timeDifference <= oneDayInMs) {
+      // The user has submitted a test within the last 24 hours, so increase the streak
+      // Assuming you store the streak count for the user in the database or somewhere
+      // For now, we're just sending the streak count in the response as a placeholder
+
+      return res.status(200).json({
+        success: true,
+        message: 'Streak is still active!',
+        streakCount: lastTestResult.streakCount ? lastTestResult.streakCount + 1 : 1, // Increment streak
+      });
+    } else {
+      // Streak is broken, reset streak count to 0
+      return res.status(200).json({
+        success: true,
+        message: 'Streak is broken. No test submitted in the last 24 hours.',
+        streakCount: 0,
+      });
+    }
+  } catch (err) {
+    console.error("Error fetching user test result:", err);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
 exports.contactUs = async (req, res) => {
   const { name, email, message } = req.body;
 
