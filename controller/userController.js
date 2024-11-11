@@ -1,4 +1,4 @@
-const { User, UserQuestionData, Subscription } = require("../models/User");
+const { User, UserQuestionData, Subscription, UserRating } = require("../models/User");
 const Question = require("../models/question");
 const TestResult = require('../models/TestResult'); 
 const bcrypt = require("bcrypt");
@@ -744,7 +744,6 @@ exports.myProfile = async (req, res) => {
   try {
     // Extract token from the Authorization header
     const token = req.headers.authorization?.split(" ")[1];
-    // console.log("Token in myProfile:", token);
 
     if (!token) {
       return res.status(401).json({
@@ -757,15 +756,22 @@ exports.myProfile = async (req, res) => {
     const decoded = jwt.verify(token, process.env.SECRET_KEY);
     const userId = decoded.userId; // Assuming userId is stored in the token
 
-    // Log the user ID
-    // console.log("Decoded User ID:", userId);
+    // Extract filters and pagination parameters
+    const { dateRange, testType, newTestResult } = req.body;
+    const { page = 1, limit = 10 } = req.query;
 
-    // Extract filters and pagination from req.body and req.query
-    const { dateRange, testType, newTestResult } = req.body; // Assuming newTestResult is passed in the request body
-    const { page = 1, limit = 10 } = req.query; // Default to page 1 and limit 10
-    // console.log("DateRange:", dateRange, "TestType:", testType);
+    // Ensure `page` and `limit` are valid positive integers
+    const parsedLimit = parseInt(limit, 10) || 10;
+    const parsedPage = parseInt(page, 10) || 1;
 
-    // Find the user profile without aggregation
+    if (parsedLimit <= 0 || parsedPage <= 0) {
+      return res.status(400).json({
+        message: "Invalid pagination values",
+        success: false,
+      });
+    }
+
+    // Find user by ID without sensitive fields
     const user = await User.findById(userId).select('-password -otp -otpExpiration');
     if (!user) {
       return res.status(404).json({
@@ -774,90 +780,47 @@ exports.myProfile = async (req, res) => {
       });
     }
 
-    // Find the user's test results
-    let testResults = await TestResult.find({ userId: userId }).lean();
-    // console.log("Initial Test Results:", testResults); // Log initial test results
+    // Fetch user's test results
+    let testResults = await TestResult.find({ userId }).lean().sort({ createdAt: -1 });
 
-    // Prepend the new test result to the testResults array if it exists
+    // Prepend the new test result if provided
     if (newTestResult) {
-      // Assuming newTestResult has the same structure as a TestResult
       testResults = [newTestResult, ...testResults];
-      // console.log("Test Results after adding new test at the beginning:", testResults);
     }
 
-    // Filter test results by date range if provided
+    // Filter by date range if provided
     if (dateRange?.from && dateRange?.to) {
       const startDate = moment(dateRange.from).startOf('day').toDate();
-      const endDate = moment(dateRange.to).endOf('day').toDate(); // Covers the entire day
-
-      // console.log("Start Date:", startDate);
-      // console.log("End Date:", endDate);
+      const endDate = moment(dateRange.to).endOf('day').toDate();
 
       testResults = testResults.filter(result => {
-        const testDate = moment(result.date, 'YYYY-MM-DD').toDate(); // Convert 'date' string to Date object
-        const isInRange = moment(testDate).isBetween(startDate, endDate, null, '[]'); // Include both start and end dates
-        // console.log(`Test Result ID: ${result._id}, Date: ${testDate}, In Range: ${isInRange}`);
-        return isInRange;
+        const testDate = moment(result.date).toDate();
+        return moment(testDate).isBetween(startDate, endDate, null, '[]');
       });
-
-      // console.log("Filtered Test Results by Date Range:", testResults); // Log filtered test results
-    } else {
-      console.log("No date range provided; skipping date filtering.");
     }
 
-    // Filter test results by test type if provided
+    // Filter by test type if provided
     if (Array.isArray(testType) && testType.length > 0) {
       testResults = testResults.filter(result => testType.includes(result.testType));
-      // console.log("Filtered Test Results by Test Type:", testResults); // Log filtered test results
-    } else {
-      // console.log("No test type provided; skipping test type filtering.");
     }
 
-    // Sort test results by createdAt in descending order
-    testResults.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    // console.log("Sorted Test Results by createdAt:", testResults); // Log sorted test results
+    // Calculate pagination
+    const totalResults = testResults.length;
+    const totalPages = Math.ceil(totalResults / parsedLimit);
+    const offset = (parsedPage - 1) * parsedLimit;
 
-    // Parse the limit as an integer
-    const parsedLimit = parseInt(limit, 10);
-
-    // Check if the limit is a valid number
-    if (isNaN(parsedLimit) || parsedLimit <= 0) {
-      return res.status(400).json({
-        message: "Invalid limit provided",
+    // Handle cases where the page is out of range
+    if (offset >= totalResults && totalResults > 0) {
+      return res.status(404).json({
+        message: "No results found for this page",
         success: false,
       });
     }
 
-    // Parse the page as an integer
-    const parsedPage = parseInt(page, 10) || 1; // Default to page 1
+    // Get the paginated results
+    const paginatedResults = testResults.slice(offset, offset + parsedLimit);
 
-    // Ensure page is at least 1
-    if (parsedPage < 1) {
-      return res.status(400).json({
-        message: "Page number must be at least 1",
-        success: false,
-      });
-    }
-
-    // Calculate total pages
-    const totalResults = testResults.length; // Total number of results
-    const totalPages = Math.ceil(totalResults / parsedLimit); // Calculate total pages
-
-    // Calculate offset
-    const offset = (parsedPage - 1) * parsedLimit; // Calculate offset
-
-    // Check if offset is within bounds
-    // if (offset >= totalResults) {
-    //   return res.status(404).json({
-    //     message: "No results found for this page",
-    //     success: false,
-    //   });
-    // }
-
-    // Slice the results array
-    const paginatedResults = testResults.slice(offset, offset + parsedLimit); // Slice the results array
-
-    // Prepare the user profile response
+    // Prepare user profile response
     const userProfile = {
       firstName: user.firstName,
       lastName: user.lastName,
@@ -865,12 +828,12 @@ exports.myProfile = async (req, res) => {
       role: user.role,
       isEmailVerified: user.isEmailVerified,
       isActive: user.isActive,
-      isBlocked : user.isBlocked,
+      isBlocked: user.isBlocked,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       mobileNumber: user.mobileNumber,
       profilePicture: user.profilePicture,
-      subascriptionStatus : user.subscriptionStatus,
+      subscriptionStatus: user.subscriptionStatus,
       testResults: paginatedResults,
       pagination: {
         totalResults,
@@ -880,11 +843,11 @@ exports.myProfile = async (req, res) => {
       },
     };
 
+    // Send the response
     return res.status(200).json({
       success: true,
       user: userProfile,
     });
-
   } catch (error) {
     console.error("Error fetching user profile:", error);
     return res.status(500).json({
@@ -1660,6 +1623,31 @@ exports.contactUs = async (req, res) => {
       return res.status(500).json({ success: false, message: 'Failed to save contact message.' });
   }
 }
+
+exports.rateUs = async (req, res) => {
+  try {
+    const { userId, rating, description } = req.body;
+
+    // Validate input
+    if (!rating || !userId) {
+      return res.status(400).json({ message: 'Rating and user ID are required' });
+    }
+
+    // Save the rating in the database
+    const newRating = new UserRating({
+      userId,
+      rating,
+      description,
+    });
+
+    await newRating.save();
+
+    res.status(201).json({ message: 'Thank you for your feedback!', data: newRating });
+  } catch (error) {
+    console.error('Error saving rating:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
 
 
 

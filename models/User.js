@@ -202,6 +202,16 @@ const userFlashcardSchema = new mongoose.Schema({
 });
 
 
+const ratingSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  rating: { type: Number, required: true, min: 1, max: 5 },
+  description: { type: String, trim: true },
+  createdAt: { type: Date, default: Date.now }
+});
+
+
+
+
 
 
 
@@ -213,7 +223,9 @@ const UserQuestionData = mongoose.model(
   "UserQuestionData",
   userQuestionDataSchema
 );
+
+const UserRating = mongoose.model('Rating', ratingSchema);
 const Subscription = mongoose.model('Subscription', SubscriptionSchema);
 const UserFlashcard = mongoose.model('UserFlashcard', userFlashcardSchema);
 
-module.exports = { User, UserQuestionData, Subscription, UserFlashcard };
+module.exports = { User, UserQuestionData, Subscription, UserFlashcard, UserRating };

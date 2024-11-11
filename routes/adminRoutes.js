@@ -36,4 +36,14 @@ router.get("/getAllFlashcard", adminController.getAllFlashcards);
 // question
 router.get("/getAllSubjects", adminController.getAllSubjects);
 
+// review
+
+router.get("/getAllReview", adminController.getAllReview);
+router.delete("/deleteReview/:id", adminController.deletereview);
+
+// contacus 
+
+router.get("/getAllContactUsEnquiries", adminController.getAllContactUs);
+router.delete("/deleteContactUsEnquiry/:id", adminController.deleteContact);
+
 module.exports = router;

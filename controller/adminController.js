@@ -1,5 +1,6 @@
 const Flashcard = require("../models/Flashcard");
-const { User, Subscription } = require("../models/User");
+const { User, Subscription, UserRating } = require("../models/User");
+const ContactUs = require("../models/Contact")
 const Question = require("../models/question");
 const TestResult = require('../models/TestResult');
 const SubscriptionSchema = require("../models/StripeModels");
@@ -11,6 +12,7 @@ const { default: mongoose } = require("mongoose");
 
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { contactUs } = require("./userController");
 
 
 
@@ -747,6 +749,100 @@ exports.getAllSubjects = async (req, res) => {
     }
 };
 
+// review 
+exports.getAllReview = async (req, res) => {
+    try {
+      const { page = 1, limit = 10 } = req.query; // Default pagination values
+      const reviews = await UserRating.find()
+        .skip((page - 1) * limit) // Pagination
+        .limit(Number(limit)) // Limit to the specified number of reviews
+        .sort({ createdAt: -1 }) // Sort by creation date (latest first)
+        .populate('userId', 'firstName lastName email');  // Populate user details (you can specify which fields you want from the User model)
+  
+      const totalReviews = await UserRating.countDocuments(); // Total count of reviews
+  
+      res.status(200).json({
+        success: true,
+        reviews,
+        pagination: {
+          totalReviews,
+          currentPage: page,
+          totalPages: Math.ceil(totalReviews / limit),
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching reviews:", error);
+      res.status(500).json({
+        success: false,
+        message: 'Error fetching reviews',
+        error: error.message,
+      });
+    }
+};
+
+exports.deletereview = async (req, res) => {
+        const { id } = req.params;
+        try {
+            const review = await UserRating.findByIdAndDelete(id);
+    
+            if (!review) {
+                return res.status(404).json({ success: false, message: 'Review not found' });
+            }
+            return res.status(200).json({ success: true, message: 'Review deleted successfully' });
+        } catch (error) {
+            console.error('Error deleting review:', error);
+            return res.status(500).json({ success: false, message: 'Server error' });
+        }
+};
+
+
+
+exports.getAllContactUs = async (req, res) => {
+    try {
+        const { page = 1, limit = 10 } = req.query; // Default pagination values
+        const contactus = await ContactUs.find()
+          .skip((page - 1) * limit) // Pagination
+          .limit(Number(limit)) // Limit to the specified number of reviews
+          .sort({ createdAt: -1 }) // Sort by creation date (latest first)
+          .populate('userId', 'firstName lastName email');  // Populate user details (you can specify which fields you want from the User model)
+    
+        const totalContact = await ContactUs.countDocuments(); // Total count of reviews
+    
+        res.status(200).json({
+          success: true,
+          contactus,
+          pagination: {
+            totalContact,
+            currentPage: page,
+            totalPages: Math.ceil(totalContact / limit),
+          },
+        });
+      } catch (error) {
+        console.error("Error fetching reviews:", error);
+        res.status(500).json({
+          success: false,
+          message: 'Error fetching reviews',
+          error: error.message,
+        });
+      }
+}
+
+
+exports.deleteContact = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const Contactus = await ContactUs.findByIdAndDelete(id);
+
+        if (!Contactus) {
+            return res.status(404).json({ success: false, message: 'Contact not found' });
+        }
+        return res.status(200).json({ success: true, message: 'Contact deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting review:', error);
+        return res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+  
 
 
 
