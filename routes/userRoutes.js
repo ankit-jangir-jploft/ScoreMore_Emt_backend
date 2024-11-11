@@ -44,6 +44,7 @@ router.get("/invoice/:id", userController.getInvoicetemplate);
 
 // user contact us 
 router.post("/contact", userController.contactUs);
+router.post("/userRating", userController.rateUs)
 
 
 module.exports = router;
