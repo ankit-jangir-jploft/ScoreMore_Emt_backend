@@ -129,6 +129,9 @@ exports.examRecord = async (req, res) => {
        userId,
        testId,
      });
+
+     console.log("userQuestionData", userQuestionData[0]);
+     console.log("userQuestionData[0].userSelectedOption", userQuestionData[0].userSelectedOption)
  
      if (userQuestionData.length === 0) {
        return res.status(200).json({
@@ -167,6 +170,7 @@ exports.examRecord = async (req, res) => {
        message: 'Daily challenge has been completed.',
        status: 'done',
        testResult: todayDailyChallenge,
+       userSelectedOption : userQuestionData[0].userSelectedOption,
        questionData: formattedQuestionData,
      });
    } catch (err) {
