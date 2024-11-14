@@ -476,6 +476,132 @@ exports.getRoadmap = async (req, res) => {
     }
 };
 
+exports.getAllRoadmaps = async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(" ")[1];
+        if (!token) {
+            return res.status(401).json({
+                message: "No token provided!",
+                success: false,
+            });
+        }
+
+        const decoded = jwt.verify(token, process.env.SECRET_KEY);
+        const userId = decoded.userId;
+
+        // Get all flashcards, distinct subjects sorted by creation date
+        const allFlashcards = await Flashcard.find().sort({ createdAt: 1 }).distinct('subject');
+        if (allFlashcards.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "No FlashCards found",
+            });
+        }
+
+        // Get all user submissions
+        const userFlashcardSubmissions = await UserFlashcard.find({ userId });
+
+        // Map through all subjects and gather roadmap data for each
+        let subjectRoadmaps = await Promise.all(allFlashcards.map(async (subject) => {
+            const flashcardsForSubject = await Flashcard.find({ subject });
+            const totalFlashcardsForSubject = flashcardsForSubject.length;
+
+            // Get user submissions for the current subject
+            const userSubmissionsForSubject = userFlashcardSubmissions.filter(submission => submission.subject === subject);
+            const totalUserSubmissions = userSubmissionsForSubject.length;
+
+            // Determine completion and unlock status
+            const isCompleted = totalUserSubmissions === totalFlashcardsForSubject && totalFlashcardsForSubject > 0;
+            const isPending = totalUserSubmissions > 0 && totalUserSubmissions < totalFlashcardsForSubject;
+            const isUnlocked = totalUserSubmissions > 0 || isCompleted || totalUserSubmissions < totalFlashcardsForSubject;
+
+            // Get levels data for the subject
+            const levels = {};
+
+            flashcardsForSubject.forEach(flashcard => {
+                const { level, subtitle } = flashcard;
+                if (!levels[level]) {
+                    levels[level] = {
+                        totalFlashcards: 0,
+                        submittedFlashcards: 0,
+                        isCompleted: false,
+                        isUnlocked: false,
+                        isCurrent: false,
+                        subtitle: null
+                    };
+                }
+
+                levels[level].totalFlashcards++;
+
+                if (levels[level].subtitle === null && subtitle) {
+                    levels[level].subtitle = subtitle;
+                }
+            });
+
+            // Track submitted flashcards by the user for each subject
+            userSubmissionsForSubject.forEach(submission => {
+                const { level } = submission;
+                if (levels[level]) {
+                    levels[level].submittedFlashcards++;
+                }
+            });
+
+            // Sort levels based on their numeric values (level)
+            const sortedLevelKeys = Object.keys(levels).sort((a, b) => Number(a) - Number(b));
+
+            let currentLevelSet = false;
+            sortedLevelKeys.forEach((levelKey, index) => {
+                const level = levels[levelKey];
+
+                if (level.submittedFlashcards === level.totalFlashcards) {
+                    level.isCompleted = true;
+                }
+
+                if (index === 0) {
+                    level.isUnlocked = true;
+                }
+
+                if (index > 0 && levels[sortedLevelKeys[index - 1]].isCompleted) {
+                    level.isUnlocked = true;
+                }
+
+                if (!currentLevelSet && level.isUnlocked && !level.isCompleted) {
+                    level.isCurrent = true;
+                    currentLevelSet = true;
+                }
+            });
+
+            return {
+                subject,
+                totalLevels: sortedLevelKeys.length,
+                levels: sortedLevelKeys.map(levelKey => ({
+                    level: levelKey,
+                    totalFlashcards: levels[levelKey].totalFlashcards,
+                    submittedFlashcards: levels[levelKey].submittedFlashcards,
+                    isCompleted: levels[levelKey].isCompleted,
+                    isUnlocked: levels[levelKey].isUnlocked,
+                    isCurrent: levels[levelKey].isCurrent,
+                    subtitle: levels[levelKey].subtitle
+                })),
+            };
+        }));
+
+        res.status(200).json({
+            success: true,
+            message: "All Roadmaps retrieved successfully!",
+            data: subjectRoadmaps
+        });
+
+    } catch (err) {
+        console.error("Error retrieving all roadmaps:", err);
+        return res.status(500).json({
+            message: "Internal server error",
+            success: false
+        });
+    }
+};
+
+
 exports.getAllFlashCardDataInLevel = async (req, res) => {
     try {
         const token = req.headers.authorization?.split(" ")[1];

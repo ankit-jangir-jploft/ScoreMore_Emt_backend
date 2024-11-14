@@ -13,6 +13,7 @@ router.get("/getFlashcardById/:id", flashcardController.getFlashcardById);
 
 router.get("/getRoadmapSubject", flashcardController.getRoadmapSubject)
 router.post("/getRoadmap", flashcardController.getRoadmap);
+router.get("/getAllRoadmap", flashcardController.getAllRoadmaps);
 
 router.post("/findFlashcardInLevel", flashcardController.getAllFlashCardDataInLevel);
 router.post("/submitFlashcard", flashcardController.submitFlashcard);

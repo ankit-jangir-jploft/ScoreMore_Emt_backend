@@ -87,66 +87,99 @@ exports.examRecord = async (req, res) => {
 
  // Adjust the path to your model if needed
 
-exports.todayDailyChallangeStatus = async (req, res) => {
-    try {
-        const token = req.headers.authorization.split(" ")[1];
-        console.log("token", token)
-        if (!token) {
-            return res.status(401).json({
-                message: "No token provided!",
-                success: false,
-            });
-        }
+ 
+ exports.todayDailyChallangeStatus = async (req, res) => {
+   try {
+     // Extract token from the Authorization header
+     const token = req.headers.authorization?.split(' ')[1];
+     if (!token) {
+       return res.status(401).json({
+         message: 'No token provided!',
+         success: false,
+       });
+     }
+ 
+     // Verify the token and extract the userId
+     const decoded = jwt.verify(token, process.env.SECRET_KEY);
+     const userId = decoded.userId;
+ 
+     // Get the start and end of the day in UTC
+     const startOfDay = moment().startOf('day').toDate();
+     const endOfDay = moment().endOf('day').toDate();
+ 
+     // Step 1: Check if today's daily challenge test is done
+     const todayDailyChallenge = await TestResult.findOne({
+       userId,
+       testType: 'dailyChallenge',
+       createdAt: { $gte: startOfDay, $lte: endOfDay },
+     });
+ 
+     if (!todayDailyChallenge) {
+       return res.status(200).json({
+         status: 'not done',
+         success: true,
+         message: 'No daily challenge test found for today.',
+         data: [],
+       });
+     }
+ 
+     // Step 2: Fetch user question data for the found testId
+     const { testId } = todayDailyChallenge;
+     const userQuestionData = await UserQuestionData.find({
+       userId,
+       testId,
+     });
+ 
+     if (userQuestionData.length === 0) {
+       return res.status(200).json({
+         status: 'done',
+         success: true,
+         message: 'Daily challenge completed but no question data found.',
+         testResult: todayDailyChallenge,
+         questionData: [],
+       });
+     }
+ 
+     // Step 3: Extract questionIds from userQuestionData
+     const questionIds = userQuestionData.map((q) => q.questionId);
+ 
+     // Step 4: Fetch detailed question data using aggregation
+     const questionData = await Question.find({ _id: { $in: questionIds } })
+     .lean()
+     .select('_id question options correctOption subject level explanation tags creatorId isActive optionAPercentage optionBPercentage optionCPercentage optionDPercentage createdAt updatedAt');
+   
+   // Clean the options field if needed
+   const formattedQuestionData = questionData.map((question) => {
+     return {
+       ...question,
+       options: Object.keys(question.options).map((key) => ({
+         [key]: question.options[key],
+       })),
+     };
+   });
+ 
 
-        const decoded = jwt.verify(token, process.env.SECRET_KEY);
-        const userId = decoded.userId; 
-        console.log("userid ", userId)
+    
+ 
+     // Final response with only one formatted question object
+     return res.status(200).json({
+       success: true,
+       message: 'Daily challenge has been completed.',
+       status: 'done',
+       testResult: todayDailyChallenge,
+       questionData: formattedQuestionData,
+     });
+   } catch (err) {
+     console.error('Error:', err);
+     return res.status(500).json({
+       success: false,
+       message: 'Internal server error',
+     });
+   }
+ };
+ 
+ 
 
-        // Get the start and end of the day in UTC
-        const startOfDay = moment().startOf('day').toDate();
-        const endOfDay = moment().endOf('day').toDate();
-
-        // Fetch today's test results for the user
-        const todayTests = await TestResult.find({
-            userId: userId,
-            createdAt: { $gte: startOfDay, $lte: endOfDay } // Filter by createdAt for today's tests
-        });
-        console.log("todayTests", todayTests)
-
-        if (todayTests.length === 0) {
-            return res.status(200).json({
-                status: "not done",
-                success : true,
-                message: "No tests found for today.",
-                data : []
-            });
-        }
-
-        // Check if there is a dailyChallenge test
-        const dailyChallengeTest = todayTests.find(test => test.testType === "dailyChallenge");
-
-        if (dailyChallengeTest) {
-            return res.status(200).json({
-                success: true,
-                message: "Daily challenge has been completed.",
-                status: "done",
-                testResult: dailyChallengeTest
-            });
-        } else {
-            return res.status(200).json({
-                success: true,
-                message: "Daily challenge not yet completed.",
-                status: "not done"
-            });
-        }
-    } catch (err) {
-        console.log("Error:", err);
-        res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        });
-    }
-};
 
 exports.getPerOptionPercentage = async (req, res) => {
     try {
