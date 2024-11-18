@@ -1896,21 +1896,21 @@ const getInvoiceData = async (invoiceId, subscription, clientDetails) => {
   return {
     invoiceNumber: invoiceId,
     createdAt: new Date().toLocaleDateString(),
-    dueDate: new Date(subscription.expiresAt).toLocaleDateString(), // Use subscription's expiration date for due date
+    dueDate: new Date(subscription.expiresAt).toLocaleDateString(),
     companyName: 'Scoremore',
     companyAddress: '1234 Street, City, Country',
     companyEmail: 'scoremore@example.com',
     companyPhone: '123-456-7890',
-    clientName: `${clientDetails.firstName || 'Client'} ${clientDetails.lastName || 'Name'}`, // Combine first and last names
-    clientAddress: clientDetails.address || '5678 Avenue, City, Country', // Adjust as necessary, assuming `address` exists in clientDetails
-    clientEmail: clientDetails.email || 'client@example.com', // Use passed client details or default value
-    paymentMethod: subscription.paymentMethod, // Use subscription's payment method
+    clientName: `${clientDetails.firstName || 'Client'} ${clientDetails.lastName || 'Name'}`,
+    clientAddress: clientDetails.address || '5678 Avenue, City, Country',
+    clientEmail: clientDetails.email || 'client@example.com', 
+    paymentMethod: subscription.paymentMethod, 
     items: [
       { description: `${subscription.subscriptionPlan}`, amount: totalAmount },
       // Add more items if necessary
     ],
     totalAmount: totalAmount,
-    companyLogo: '/path/to/logo.png' // Change the path accordingly
+    companyLogo: 'http://v4.checkprojectstatus.com:4749/assets/score-logo-B5Zg32ei.svg'
   };
 };
 
