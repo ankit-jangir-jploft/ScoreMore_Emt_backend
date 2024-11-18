@@ -402,27 +402,42 @@ exports.socialLogin = async (req, res) => {
 
     // Check if user exists with the given email and socialId
     let user = await User.findOne({ email, socialId, isDeleted: false });
-    // console.log("user", user);
+    console.log("user", user)
 
     // Check if the user is blocked
     if (user?.isBlocked) {
       return res.status(201).json({ status: 201, message: "User Blocked" });
     }
+    console.log("it hitssss")
 
     // User found, generate a token
     if (user) {
       const tokenData = { userId: user._id };
       const token = jwt.sign(tokenData, process.env.SECRET_KEY);
 
+      // Prepare user data to send in the response
+      const userResponse = {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+        isBlocked: user.isBlocked,
+        isEmailVerified: user.isEmailVerified,
+        mobileNumber: user.mobileNumber,
+        registrationType: user.registrationType,  // Optional, based on your needs
+      };
+
       return res.status(200).json({
         status: 200,
         message: "Login Successfully",
-        data: user,
+        data: userResponse,
         token: token,
-        LastStep: user.CompleteSteps,
+        LastStep: user.CompleteSteps,  // Additional user-related data
       });
-    }
-
+    } else {
+      
     // User not found, create a new one
     let newUser = new User({
       email,
@@ -431,23 +446,36 @@ exports.socialLogin = async (req, res) => {
       lastName,
       registrationType,
     });
-    // console.log("newuser", newUser)
 
     // Save new user to the database
     await newUser.save();
 
-    // console.log("it hits");
-
     // Generate token for the new user
-    const tokenData = { userId: user._id };
+    const tokenData = { userId: newUser._id };  // Use newUser._id instead of user._id
     const token = jwt.sign(tokenData, process.env.SECRET_KEY);
+
+    // Prepare user data to send in the response
+    const newUserResponse = {
+      _id: newUser._id,
+      firstName: newUser.firstName,
+      lastName: newUser.lastName,
+      email: newUser.email,
+      role: newUser.role,
+      isActive: newUser.isActive,
+      isBlocked: newUser.isBlocked,
+      isEmailVerified: newUser.isEmailVerified,
+      mobileNumber: newUser.mobileNumber,
+      registrationType: newUser.registrationType,
+    };
 
     return res.status(201).json({
       success: true,
       message: "User created successfully",
-      data: newUser,
+      data: newUserResponse,
       token: token,
     });
+    }
+
 
   } catch (error) {
     console.error("Error in social login:", error);
@@ -457,6 +485,8 @@ exports.socialLogin = async (req, res) => {
     });
   }
 };
+
+
 
 
 //forgot password
