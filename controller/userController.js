@@ -1,6 +1,6 @@
 const { User, UserQuestionData, Subscription, UserRating } = require("../models/User");
 const Question = require("../models/question");
-const TestResult = require('../models/TestResult'); 
+const TestResult = require('../models/TestResult');
 const bcrypt = require("bcrypt");
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
@@ -10,6 +10,7 @@ const path = require('path');
 const pdf = require('puppeteer');
 const { default: mongoose } = require("mongoose");
 const FilteredQuestion = require("../models/FilterQuestionTestData");
+const UserStrike = require("../models/StrikeCount");
 const ejs = require("ejs");
 const moment = require("moment");
 const fs = require('fs');
@@ -18,7 +19,7 @@ const Contact = require("../models/Contact");
 // Adjust the paths as per your project structure
 const templatePath = path.join(__dirname, '..', 'views', 'templates', 'transactionInvoice.ejs');
 const pdfDirectory = path.join(__dirname, '..', 'public', 'pdfs');
-const publicDirectory = path.join(__dirname, '..', 'public'); 
+const publicDirectory = path.join(__dirname, '..', 'public');
 
 
 exports.signup = async (req, res) => {
@@ -83,9 +84,9 @@ exports.signup = async (req, res) => {
         </div>
       `,
     };
-    
-    
-    
+
+
+
 
     const emailSent = await sendEmail(mailOptions);
     if (!emailSent) {
@@ -118,7 +119,7 @@ exports.verifyEmail = async (req, res) => {
       return res.status(404).json({ message: "User not found.", success: false });
     }
 
-    user.isEmailVerified = true; 
+    user.isEmailVerified = true;
     user.isActive = true;// Mark the user as verified
     await user.save();
 
@@ -131,7 +132,6 @@ exports.verifyEmail = async (req, res) => {
 };
 
 //  sign in with password and otp
-  
 exports.signInWithPassword = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -163,7 +163,7 @@ exports.signInWithPassword = async (req, res) => {
       });
     }
 
-    if(user.isBlocked){
+    if (user.isBlocked) {
       return res.status(403).json({
         message: "You are blocked by admin please contact support team !!",
         success: false,
@@ -189,7 +189,7 @@ exports.signInWithPassword = async (req, res) => {
       email: user.email,
       role: user.role,
       isActive: user.isActive,
-      isBlocked : user.isBlocked,
+      isBlocked: user.isBlocked,
       isEmailVerified: user.isEmailVerified,
       mobileNumber: user.mobileNumber,
     };
@@ -230,8 +230,8 @@ exports.signInWithOTP = async (req, res) => {
         success: false,
       });
     }
-    
-    if(user.isBlocked){
+
+    if (user.isBlocked) {
       return res.status(403).json({
         message: "You are blocked by admin please contact support team !!",
         success: false,
@@ -315,7 +315,7 @@ exports.signInWithOTP = async (req, res) => {
 exports.verifyOTP = async (req, res) => {
   try {
     const { otp, email } = req.body;
-    
+
     if (!otp || !email) {
       return res.status(400).json({
         message: "OTP and email are required!",
@@ -332,8 +332,8 @@ exports.verifyOTP = async (req, res) => {
       });
     }
 
-    
-    if(user.isBlocked){
+
+    if (user.isBlocked) {
       return res.status(403).json({
         message: "You are blocked by admin please contact support team !!",
         success: false,
@@ -394,7 +394,6 @@ exports.verifyOTP = async (req, res) => {
     });
   }
 };
-
 // social login 
 
 exports.socialLogin = async (req, res) => {
@@ -449,7 +448,7 @@ exports.socialLogin = async (req, res) => {
       data: newUser,
       token: token,
     });
-    
+
   } catch (error) {
     console.error("Error in social login:", error);
     return res.status(500).json({
@@ -484,8 +483,8 @@ exports.forgotPassword = async (req, res) => {
       });
     }
 
-    
-    if(user.isBlocked){
+
+    if (user.isBlocked) {
       return res.status(403).json({
         message: "You are blocked by admin please contact support team !!",
         success: false,
@@ -546,11 +545,11 @@ exports.resetPassword = async (req, res) => {
   try {
     // console.log("req.body", req.body)
     const { otp, newPassword, email } = req.body;
-    
+
     // console.log("req.otp", otp, newPassword,email )
 
     // Validate input
-    if (!email|| !otp || !newPassword) {
+    if (!email || !otp || !newPassword) {
       return res.status(400).json({
         message: "User ID, OTP, and new password are required!",
         success: false,
@@ -859,8 +858,8 @@ exports.myProfile = async (req, res) => {
 
 exports.editProfile = async (req, res) => {
   try {
-    const { _id } = req.user; 
-    const { firstName, lastName, email, mobileNumber } = req.body; 
+    const { _id } = req.user;
+    const { firstName, lastName, email, mobileNumber } = req.body;
 
     let profilePicture;
 
@@ -886,7 +885,7 @@ exports.editProfile = async (req, res) => {
     user.firstName = firstName || user.firstName;
     user.lastName = lastName || user.lastName;
     user.email = email || user.email;
-    user.mobileNumber = mobileNumber || user.mobileNumber; 
+    user.mobileNumber = mobileNumber || user.mobileNumber;
     user.profilePicture = profilePicture || user.profilePicture; // Update profile picture if new one is uploaded
 
     await user.save();
@@ -954,17 +953,17 @@ exports.getUserDetail = async (req, res) => {
 exports.userQuestionData = async (req, res) => {
   try {
     // console.log("req.body", req.body);
-    const { 
-      userId, 
-      questionId, 
-      userSelectedOption = "",  
-      isCorrect, 
-      isMarked, 
-      timeTaken, 
-      level, 
-      isUsed, 
-      isOmitted, 
-      testId 
+    const {
+      userId,
+      questionId,
+      userSelectedOption = "",
+      isCorrect,
+      isMarked,
+      timeTaken,
+      level,
+      isUsed,
+      isOmitted,
+      testId
     } = req.body;
 
     // Validation: Ensure all required fields are provided
@@ -973,10 +972,10 @@ exports.userQuestionData = async (req, res) => {
     }
 
     // Check if the question already exists in the database
-    const existingQuestionData = await UserQuestionData.findOne({ 
-      userId, 
-      testId, 
-      questionId 
+    const existingQuestionData = await UserQuestionData.findOne({
+      userId,
+      testId,
+      questionId
     });
     // console.log("existingQuestionData", existingQuestionData)
 
@@ -1010,7 +1009,7 @@ exports.userQuestionData = async (req, res) => {
         level,
         isUsed: isUsed || true, // Defaults to true if not provided
         isOmitted: isOmitted || false,
-        testId 
+        testId
       });
       // console.log("question data", questionData);
 
@@ -1032,28 +1031,28 @@ exports.userQuestionData = async (req, res) => {
 exports.findquestionMarkSatatus = async (req, res) => {
   const { userId, questionId } = req.body;
 
-    if (!userId || !questionId) {
-        return res.status(400).json({ message: 'userId and questionId are required' });
-    }
+  if (!userId || !questionId) {
+    return res.status(400).json({ message: 'userId and questionId are required' });
+  }
 
-    try {
-        // Fetch the latest submission of the user for the given question
-        const submission = await UserQuestionData.findOne({
-            userId,
-            questionId,
-        }).sort({ createdAt: -1 }); // Assuming there's a submissionDate field to sort by latest submission
-      //  console.log("submission", submission);
-        if (submission) {
-            return res.status(200).json({
-                data: submission, // Return the isMarked field from the latest submission
-            });
-        } else {
-            return res.status(404).json({ message: 'Submission not found for this question.' });
-        }
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: 'Server error while fetching submission.' });
+  try {
+    // Fetch the latest submission of the user for the given question
+    const submission = await UserQuestionData.findOne({
+      userId,
+      questionId,
+    }).sort({ createdAt: -1 }); // Assuming there's a submissionDate field to sort by latest submission
+    //  console.log("submission", submission);
+    if (submission) {
+      return res.status(200).json({
+        data: submission, // Return the isMarked field from the latest submission
+      });
+    } else {
+      return res.status(404).json({ message: 'Submission not found for this question.' });
     }
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Server error while fetching submission.' });
+  }
 };
 
 // Function to update question percentages
@@ -1087,11 +1086,11 @@ const updateQuestionPercentages = async (questionId) => {
   // Calculate total responses
   const totalResponses = countA + countB + countC + countD;
 
- // Calculate percentage for each option and round to two decimal places
- const percentageA = totalResponses ? Math.round((countA / totalResponses) * 100 * 100) / 100 : 0;
- const percentageB = totalResponses ? Math.round((countB / totalResponses) * 100 * 100) / 100 : 0;
- const percentageC = totalResponses ? Math.round((countC / totalResponses) * 100 * 100) / 100 : 0;
- const percentageD = totalResponses ? Math.round((countD / totalResponses) * 100 * 100) / 100 : 0;
+  // Calculate percentage for each option and round to two decimal places
+  const percentageA = totalResponses ? Math.round((countA / totalResponses) * 100 * 100) / 100 : 0;
+  const percentageB = totalResponses ? Math.round((countB / totalResponses) * 100 * 100) / 100 : 0;
+  const percentageC = totalResponses ? Math.round((countC / totalResponses) * 100 * 100) / 100 : 0;
+  const percentageD = totalResponses ? Math.round((countD / totalResponses) * 100 * 100) / 100 : 0;
 
   // Update the question with the new percentages
   await Question.findByIdAndUpdate(
@@ -1108,7 +1107,7 @@ const updateQuestionPercentages = async (questionId) => {
 
 exports.updateQuestionData = async (req, res) => {
   try {
-    const { userId, questionId, testId, userSelectedOption, isCorrect, isMarked, timeTaken} = req.body;
+    const { userId, questionId, testId, userSelectedOption, isCorrect, isMarked, timeTaken } = req.body;
 
     // Validation: Ensure essential identifiers are provided
     if (!userId || !questionId || !testId || !userSelectedOption) {
@@ -1274,9 +1273,9 @@ exports.lastSubmitQuestion = async (req, res) => {
     const lastQuestion = await UserQuestionData.find({ userId, testId })
       .sort({ createdAt: -1 }) // Sort by createdAt in descending order
       .exec(); // Use exec() to execute the query
-      // console.log("Last submitted question:", lastQuestion);
+    // console.log("Last submitted question:", lastQuestion);
     if (lastQuestion) {
-     
+
       return res.status(200).json({
         success: true,
         data: lastQuestion, // Return the found question
@@ -1437,92 +1436,92 @@ exports.allExamRecord = async (req, res) => {
 
 exports.getSubscriptionDetails = async (req, res) => {
   try {
-      const { id } = req.params; // Get userId from route parameters
+    const { id } = req.params; // Get userId from route parameters
 
-      // Validate ObjectId (if using Mongoose)
-      if (!mongoose.isValidObjectId(id)) {
-          return res.status(400).json({
-              success: false,
-              message: "Invalid user ID format",
-          });
-      }
-
-      // Find the user in the database by ID
-      const user = await User.findById(id);
-      if (!user) {
-          return res.status(404).json({
-              success: false,
-              message: "User not found",
-          });
-      }
-
-      // Find the latest subscription of the user
-      const subscription = await Subscription.findOne({ userId: id }).sort({ createdAt: -1 });
-      if (!subscription) {
-          return res.status(404).json({
-              success: false,
-              message: "No subscription found for this user",
-          });
-      }
-      console.log("subscription", subscription)
-
-      // Calculate remaining days
-      const currentDate = new Date();
-      const expiresAt = new Date(subscription.expiresAt);
-      console.log("cfasfc", expiresAt, currentDate)
-      const remainingDays = Math.max(Math.ceil((expiresAt - currentDate) / (1000 * 60 * 60 * 24)), 0); // Ensure no negative values
-      console.log("reaming days", remainingDays)
-
-      // Prepare the subscription details to return
-      const subscriptionDetails = {
-          subscriptionStatus: subscription.subscriptionStatus,
-          paymentAmount: subscription.paymentAmount,
-          currency: subscription.currency,
-          subscriptionPlan: subscription.subscriptionPlan,
-          startedAt: subscription.startedAt,
-          expiresAt: subscription.expiresAt,
-          remainingDays: remainingDays,
-          paymentMethod: subscription.paymentMethod,
-          transactionId: subscription.transactionId,
-      };
-
-      // Prepare client details (assuming they are part of the user or can be passed in)
-      const clientDetails = {
-          name: user.name,
-          address: user.address, // Adjust based on how you store user address
-          email: user.email,
-      };
-
-      // Generate invoice data
-      const invoiceData = await getInvoiceData(subscription._id, subscription, clientDetails);
-
-      return res.status(200).json({
-          success: true,
-          user: {
-              _id: user._id,
-              name: user.name,
-              email: user.email,
-              subscriptionId: subscription._id,
-          },
-          subscription: subscriptionDetails,
-          invoice: invoiceData // Return the generated invoice data
+    // Validate ObjectId (if using Mongoose)
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID format",
       });
+    }
+
+    // Find the user in the database by ID
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Find the latest subscription of the user
+    const subscription = await Subscription.findOne({ userId: id }).sort({ createdAt: -1 });
+    if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        message: "No subscription found for this user",
+      });
+    }
+    console.log("subscription", subscription)
+
+    // Calculate remaining days
+    const currentDate = new Date();
+    const expiresAt = new Date(subscription.expiresAt);
+    console.log("cfasfc", expiresAt, currentDate);
+    const remainingDays = Math.max(Math.ceil((expiresAt - currentDate) / (1000 * 60 * 60 * 24)), 0); // Ensure no negative values
+    console.log("reaming days", remainingDays);
+
+    // Prepare the subscription details to return
+    const subscriptionDetails = {
+      subscriptionStatus: subscription.subscriptionStatus,
+      paymentAmount: subscription.paymentAmount,
+      currency: subscription.currency,
+      subscriptionPlan: subscription.subscriptionPlan,
+      startedAt: subscription.startedAt,
+      expiresAt: subscription.expiresAt,
+      remainingDays: remainingDays,
+      paymentMethod: subscription.paymentMethod,
+      transactionId: subscription.transactionId,
+    };
+
+    // Prepare client details (assuming they are part of the user or can be passed in)
+    const clientDetails = {
+      name: user.name,
+      address: user.address, // Adjust based on how you store user address
+      email: user.email,
+    };
+
+    // Generate invoice data
+    const invoiceData = await getInvoiceData(subscription._id, subscription, clientDetails);
+
+    return res.status(200).json({
+      success: true,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        subscriptionId: subscription._id,
+      },
+      subscription: subscriptionDetails,
+      invoice: invoiceData // Return the generated invoice data
+    });
   } catch (error) {
-      console.error("Error retrieving subscription details:", error);
-      return res.status(500).json({
-          success: false,
-          message: "Internal server error",
-      });
+    console.error("Error retrieving subscription details:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
   }
 };
 
 exports.getUserTransactionHistory = async (req, res) => {
   try {
-    const { id } = req.params; 
+    const { id } = req.params;
     console.log("userid", id)// Get userId from request params
 
     // Find all subscriptions associated with the user
-    const transactions = await Subscription.find({ userId : id }).sort({ createdAt: -1 });
+    const transactions = await Subscription.find({ userId: id }).sort({ createdAt: -1 });
     console.log("transactions", transactions)
 
     if (!transactions || transactions.length === 0) {
@@ -1539,15 +1538,15 @@ exports.getUserTransactionHistory = async (req, res) => {
       currency: transaction.currency,
       paymentMethod: transaction.paymentMethod,
       subscriptionPlan: transaction.subscriptionPlan,
-      planType : transaction.subscriptionPlan == "price_1QHNA1JpjKGzAGnrwEWMpjpi" ? "1 Month Plan" : transaction.subscriptionPlan == "price_1QFDhaJpjKGzAGnr7jSEIpaQ" ? "3 Month Plan" : transaction.subscriptionPlan == "price_1QDle3JpjKGzAGnrk747qdyG" ? "1 Year Plan" : "no plan", 
+      planType: transaction.subscriptionPlan == "price_1QHNA1JpjKGzAGnrwEWMpjpi" ? "1 Month Plan" : transaction.subscriptionPlan == "price_1QFDhaJpjKGzAGnr7jSEIpaQ" ? "3 Month Plan" : transaction.subscriptionPlan == "price_1QDle3JpjKGzAGnrk747qdyG" ? "1 Year Plan" : "no plan",
       subscriptionStatus: transaction.subscriptionStatus,
       startedAt: transaction.startedAt.toISOString().slice(0, 10), // Format to 'yyyy-mm-dd'
-      expiresAt: transaction.expiresAt ? transaction.expiresAt.toISOString().slice(0, 10) : null, 
+      expiresAt: transaction.expiresAt ? transaction.expiresAt.toISOString().slice(0, 10) : null,
     }));
 
     res.status(200).json({
       success: true,
-      message : "All Transction found Successfully !!",
+      message: "All Transction found Successfully !!",
       transactionHistory,
     });
 
@@ -1560,67 +1559,198 @@ exports.getUserTransactionHistory = async (req, res) => {
   }
 };
 
-exports.userdailyStreak = async (req, res) => {
+
+
+
+// exports.userDailyStreak = async (req, res) => {
+//   try {
+//     console.log("API hit");
+//     const { userId } = req.body;
+
+//     if (!userId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'User ID is required.',
+//       });
+//     }
+
+//     // Get the current time
+//     const currentTime = new Date();
+
+//     // Fetch the user's strike record
+//     let userStrike = await UserStrike.findOne({ userId });
+
+//     // Fetch the most recent test submitted by the user
+//     const latestTest = await TestResult.findOne({ userId }).sort({ createdAt: -1 });
+
+//     if (!latestTest) {
+//       // If no tests found, reset or initialize the user's streak record
+//       if (!userStrike) {
+//         userStrike = new UserStrike({ userId });
+//       }
+//       userStrike.strikeCount = 0;
+//       userStrike.lastStrikeUpdateTime = null;
+//       await userStrike.save();
+
+//       return res.status(200).json({
+//         success: true,
+//         message: 'No test submissions found.',
+//         streakCount: 0,
+//       });
+//     }
+
+//     const lastTestTime = new Date(latestTest.createdAt);
+
+//     if (!userStrike) {
+//       // If no strike record exists, create one
+//       userStrike = new UserStrike({
+//         userId,
+//         strikeCount: 1,
+//         lastSubmissionTime: lastTestTime,
+//         lastStrikeUpdateTime: currentTime,
+//       });
+//     } else {
+//       const lastSubmissionDiff = (currentTime - new Date(userStrike.lastSubmissionTime)) / 1000; // in seconds
+//       const lastStrikeDiff = (currentTime - new Date(userStrike.lastStrikeUpdateTime)) / 1000; // in seconds
+
+//       // Check if more than one minute has passed since the last strike update
+//       if (lastStrikeDiff >= 60) {
+//         if (lastSubmissionDiff <= 60) {
+//           // If a test was submitted in the last minute, increase the streak
+//           userStrike.strikeCount += 1;
+//           userStrike.lastStrikeUpdateTime = currentTime;
+//         } else {
+//           // If no test was submitted in the last one minute, reset the streak count
+//           userStrike.strikeCount = 0;
+//         }
+//       }
+//     }
+
+//     // Update the last submission time
+//     userStrike.lastSubmissionTime = lastTestTime;
+//     await userStrike.save();
+
+//     return res.status(200).json({
+//       success: true,
+//       message: 'Daily streak count updated successfully.',
+//       streakCount: userStrike.strikeCount,
+//     });
+
+//   } catch (err) {
+//     console.error("Error updating user streak count:", err);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Internal server error",
+//     });
+//   }
+// };
+
+exports.userDailyStreak = async (req, res) => {
   try {
+    console.log("API hit");
     const { userId } = req.body;
 
-    // Get the most recent test result for the user
-    const lastTestResult = await TestResult.findOne({ userId }).sort({ createdAt: -1 });
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID is required.',
+      });
+    }
 
-    if (!lastTestResult) {
+    // Get the current time
+    const currentTime = new Date();
+
+    // Fetch the user's strike record
+    let userStrike = await UserStrike.findOne({ userId });
+
+    // Fetch the most recent test submitted by the user
+    const latestTest = await TestResult.findOne({ userId }).sort({ createdAt: -1 });
+
+    if (!latestTest) {
+      // If no tests found, reset or initialize the user's streak record
+      if (!userStrike) {
+        userStrike = new UserStrike({ userId });
+      }
+      userStrike.strikeCount = 0;
+      userStrike.lastStrikeUpdateTime = null;
+      await userStrike.save();
+
       return res.status(200).json({
         success: true,
-        message: 'No test results found for the user.',
+        message: 'No test submissions found.',
         streakCount: 0,
       });
     }
 
-    // Get the current date and calculate the time difference from the last test
-    const currentDate = new Date();
-    const lastTestDate = new Date(lastTestResult.createdAt);
-    const timeDifference = currentDate - lastTestDate;
+    const lastTestTime = new Date(latestTest.createdAt);
 
-    // Check if it's within the last 24 hours (in milliseconds)
-    const oneDayInMs = 24 * 60 * 60 * 1000;
-
-    // Determine if the streak is broken or if it should continue
-    if (timeDifference <= oneDayInMs) {
-      // The user has submitted a test within the last 24 hours, so increase the streak
-      // Assuming you store the streak count for the user in the database or somewhere
-      // For now, we're just sending the streak count in the response as a placeholder
-
-      return res.status(200).json({
-        success: true,
-        message: 'Streak is still active!',
-        streakCount: lastTestResult.streakCount ? lastTestResult.streakCount + 1 : 1, // Increment streak
+    if (!userStrike) {
+      // If no strike record exists, create one
+      userStrike = new UserStrike({
+        userId,
+        strikeCount: 1,
+        lastSubmissionTime: lastTestTime,
+        lastStrikeUpdateTime: currentTime,
       });
     } else {
-      // Streak is broken, reset streak count to 0
-      return res.status(200).json({
-        success: true,
-        message: 'Streak is broken. No test submitted in the last 24 hours.',
-        streakCount: 0,
-      });
+      const lastSubmissionDiff = (currentTime - new Date(userStrike.lastSubmissionTime)) / 1000; // in seconds
+      const lastStrikeDiff = (currentTime - new Date(userStrike.lastStrikeUpdateTime)) / 1000; // in seconds
+
+      // Check if more than one minute has passed since the last strike update
+      if (lastStrikeDiff >= 60) {
+        if (lastSubmissionDiff <= 60) {
+          // If a test was submitted in the last minute, increase the streak
+          userStrike.strikeCount += 1;
+          userStrike.lastStrikeUpdateTime = currentTime;
+        } else {
+          // If no test was submitted in the last one minute, reset the streak count
+          userStrike.strikeCount = 0;
+        }
+      }
     }
+
+    // Update the last submission time
+    userStrike.lastSubmissionTime = lastTestTime;
+    await userStrike.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Daily streak count updated successfully.',
+      streakCount: userStrike.strikeCount,
+    });
+
   } catch (err) {
-    console.error("Error fetching user test result:", err);
-    res.status(500).json({
+    console.error("Error updating user streak count:", err);
+    return res.status(500).json({
       success: false,
       message: "Internal server error",
     });
   }
 };
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 exports.contactUs = async (req, res) => {
   const { name, email, message } = req.body;
 
   try {
-      const newContact = new Contact({ name, email, message });
-      await newContact.save();
-      return res.status(201).json({ success: true, message: 'Thank you for contacting us. Our support team will get back to you shortly.' });
+    const newContact = new Contact({ name, email, message });
+    await newContact.save();
+    return res.status(201).json({ success: true, message: 'Thank you for contacting us. Our support team will get back to you shortly.' });
   } catch (error) {
-      console.error('Error saving contact message:', error);
-      return res.status(500).json({ success: false, message: 'Failed to save contact message.' });
+    console.error('Error saving contact message:', error);
+    return res.status(500).json({ success: false, message: 'Failed to save contact message.' });
   }
 }
 
@@ -1653,11 +1783,11 @@ exports.rateUs = async (req, res) => {
 
 // user invoice 
 
-if (!fs.existsSync(publicDirectory)){
+if (!fs.existsSync(publicDirectory)) {
   fs.mkdirSync(publicDirectory, { recursive: true });
 }
 
-if (!fs.existsSync(pdfDirectory)){
+if (!fs.existsSync(pdfDirectory)) {
   fs.mkdirSync(pdfDirectory, { recursive: true });
 }
 
@@ -1667,58 +1797,58 @@ exports.getInvoicetemplate = async (req, res) => {
   console.log("invoice id", invoiceId);
 
   try {
-      // Search for the subscription using the transactionId
-      const subscription = await Subscription.findOne({ transactionId: invoiceId });
-      console.log("subscription", subscription);
+    // Search for the subscription using the transactionId
+    const subscription = await Subscription.findOne({ transactionId: invoiceId });
+    console.log("subscription", subscription);
 
-      if (!subscription) {
-          return res.status(404).json({ success: false, message: "Invoice not found." });
+    if (!subscription) {
+      return res.status(404).json({ success: false, message: "Invoice not found." });
+    }
+
+    // Fetch user details based on userId from subscription
+    const user = await User.findById(subscription.userId);
+    console.log("user", user)
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+
+    // Prepare client details based on user schema
+    const clientDetails = {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      mobileNumber: user.mobileNumber,
+      profilePicture: user.profilePicture,
+      // Add other user details as necessary
+    };
+
+    // Get the invoice data
+    const invoiceData = await getInvoiceData(invoiceId, subscription, clientDetails);
+    console.log("invoice data", invoiceData);
+    console.log("template path", templatePath);
+
+    // Render the invoice using EJS
+    ejs.renderFile(templatePath, invoiceData, async (err, html) => {
+      if (err) {
+        console.error('EJS render error:', err);
+        return res.status(500).send('Error generating invoice');
       }
 
-      // Fetch user details based on userId from subscription
-      const user = await User.findById(subscription.userId);
-      console.log("user", user)
-      if (!user) {
-          return res.status(404).json({ success: false, message: "User not found." });
+      console.log('Generated HTML:', html);
+
+      try {
+        const pdfPath = await generatePDFBuffer(html, invoiceId);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=invoice-${invoiceId}.pdf`);
+        res.sendFile(pdfPath);
+      } catch (pdfErr) {
+        console.error('PDF generation error:', pdfErr);
+        return res.status(500).send('Error generating PDF');
       }
-
-      // Prepare client details based on user schema
-      const clientDetails = {
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          mobileNumber: user.mobileNumber,
-          profilePicture: user.profilePicture,
-          // Add other user details as necessary
-      };
-
-      // Get the invoice data
-      const invoiceData = await getInvoiceData(invoiceId, subscription, clientDetails);
-      console.log("invoice data", invoiceData);
-      console.log("template path", templatePath);
-
-      // Render the invoice using EJS
-      ejs.renderFile(templatePath, invoiceData, async (err, html) => {
-          if (err) {
-              console.error('EJS render error:', err);
-              return res.status(500).send('Error generating invoice');
-          }
-
-          console.log('Generated HTML:', html);
-
-          try {
-              const pdfPath = await generatePDFBuffer(html, invoiceId);
-              res.setHeader('Content-Type', 'application/pdf');
-              res.setHeader('Content-Disposition', `attachment; filename=invoice-${invoiceId}.pdf`);
-              res.sendFile(pdfPath);
-          } catch (pdfErr) {
-              console.error('PDF generation error:', pdfErr);
-              return res.status(500).send('Error generating PDF');
-          }
-      });
+    });
   } catch (error) {
-      console.error("Error generating invoice:", error);
-      return res.status(500).send("Internal Server Error");
+    console.error("Error generating invoice:", error);
+    return res.status(500).send("Internal Server Error");
   }
 };
 
@@ -1727,23 +1857,23 @@ const getInvoiceData = async (invoiceId, subscription, clientDetails) => {
   const totalAmount = subscription.paymentAmount; // You can adjust this if needed
 
   return {
-      invoiceNumber: invoiceId,
-      createdAt: new Date().toLocaleDateString(),
-      dueDate: new Date(subscription.expiresAt).toLocaleDateString(), // Use subscription's expiration date for due date
-      companyName: 'Scoremore',
-      companyAddress: '1234 Street, City, Country',
-      companyEmail: 'scoremore@example.com',
-      companyPhone: '123-456-7890',
-      clientName: `${clientDetails.firstName || 'Client'} ${clientDetails.lastName || 'Name'}`, // Combine first and last names
-      clientAddress: clientDetails.address || '5678 Avenue, City, Country', // Adjust as necessary, assuming `address` exists in clientDetails
-      clientEmail: clientDetails.email || 'client@example.com', // Use passed client details or default value
-      paymentMethod: subscription.paymentMethod, // Use subscription's payment method
-      items: [
-          { description: `${subscription.subscriptionPlan}`, amount: totalAmount },
-          // Add more items if necessary
-      ],
-      totalAmount: totalAmount,
-      companyLogo: '/path/to/logo.png' // Change the path accordingly
+    invoiceNumber: invoiceId,
+    createdAt: new Date().toLocaleDateString(),
+    dueDate: new Date(subscription.expiresAt).toLocaleDateString(), // Use subscription's expiration date for due date
+    companyName: 'Scoremore',
+    companyAddress: '1234 Street, City, Country',
+    companyEmail: 'scoremore@example.com',
+    companyPhone: '123-456-7890',
+    clientName: `${clientDetails.firstName || 'Client'} ${clientDetails.lastName || 'Name'}`, // Combine first and last names
+    clientAddress: clientDetails.address || '5678 Avenue, City, Country', // Adjust as necessary, assuming `address` exists in clientDetails
+    clientEmail: clientDetails.email || 'client@example.com', // Use passed client details or default value
+    paymentMethod: subscription.paymentMethod, // Use subscription's payment method
+    items: [
+      { description: `${subscription.subscriptionPlan}`, amount: totalAmount },
+      // Add more items if necessary
+    ],
+    totalAmount: totalAmount,
+    companyLogo: '/path/to/logo.png' // Change the path accordingly
   };
 };
 
@@ -1751,13 +1881,13 @@ const generatePDFBuffer = async (html, invoiceId) => {
   const browser = await pdf.launch();
   const page = await browser.newPage();
   await page.setContent(html);
-  
+
   // Define the path to save the PDF
   const pdfPath = path.join(pdfDirectory, `invoice-${invoiceId}.pdf`); // Save in public/pdfs
-  
+
   // Generate and save the PDF
   await page.pdf({ path: pdfPath, format: 'A4' });
-  
+
   await browser.close();
   return pdfPath; // Return the path for further use
 };
@@ -1783,56 +1913,55 @@ const generatePDFBuffer = async (html, invoiceId) => {
 
 
 
-  
-  async function sendEmail(mailOptions) {
-    try {
-      let transporter = nodeMailer.createTransport({
-        host: "smtp.gmail.com",
-        port: 587,
-        secure: false,
-        auth: {
-          user: process.env.MAIL_ID, // Ensure this is set correctly
-          pass: process.env.PASS, // Ensure this is set correctly
-        },
-        tls: {
-          rejectUnauthorized: false, // Allow self-signed certificates
-        },
-      });
-      console.log("yrnsporter", transporter)
-  
-      const info = await transporter.sendMail(mailOptions);
-      console.log("mail info", info.response);
-      return true;
-    } catch (error) {
-      console.log("errorin send mail", error);
-      return false;
-    }
+
+async function sendEmail(mailOptions) {
+  try {
+    let transporter = nodeMailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.MAIL_ID, // Ensure this is set correctly
+        pass: process.env.PASS, // Ensure this is set correctly
+      },
+      tls: {
+        rejectUnauthorized: false, // Allow self-signed certificates
+      },
+    });
+    console.log("yrnsporter", transporter)
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log("mail info", info.response);
+    return true;
+  } catch (error) {
+    console.log("errorin send mail", error);
+    return false;
   }
+}
 
- 
 
- 
-  
-  exports.logout = async (req, res) => {
-    try {
-      return res
-        .status(200)
-        .cookie("token", "", {
-          maxAge: 0,
-          httpOnly: true, 
-          sameSite: "strict", // Helps prevent CSRF attacks
-          path: "/", // Specify the path to ensure the cookie is cleared properly
-        })
-        .json({
-          message: "Logout successfully!",
-          success: true,
-        });
-    } catch (err) {
-      console.log("Error in logout", err);
-      return res.status(500).json({
-        message: "Internal server error",
-        success: false,
+
+
+
+exports.logout = async (req, res) => {
+  try {
+    return res
+      .status(200)
+      .cookie("token", "", {
+        maxAge: 0,
+        httpOnly: true,
+        sameSite: "strict", // Helps prevent CSRF attacks
+        path: "/", // Specify the path to ensure the cookie is cleared properly
+      })
+      .json({
+        message: "Logout successfully!",
+        success: true,
       });
-    }
-  };
-  
+  } catch (err) {
+    console.log("Error in logout", err);
+    return res.status(500).json({
+      message: "Internal server error",
+      success: false,
+    });
+  }
+};

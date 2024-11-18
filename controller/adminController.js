@@ -638,7 +638,7 @@ exports.deleteSubscription = async (req, res) => {
     try {
         const { id } = req.params;
         const subscription = await SubscriptionSchema.findById(id);
-        console.log("subscription", subscription)
+        console.log("subscription123", subscription)
         
         if (!subscription) {
             return res.status(404).json({
@@ -647,8 +647,11 @@ exports.deleteSubscription = async (req, res) => {
             });
         }
 
+        // const userSubscription = await Subscription.find()
+        // console.log("subscription", subscription);
+        
         // Check if any users are using this subscription plan
-        const userSubscription = await Subscription.find({ subscriptionPlan: subscription.stripePriceId });
+        const userSubscription = await Subscription.find({subscriptionPlan : subscription.stripePriceId});
         console.log("userSubsc", userSubscription);
 
         if (userSubscription.length > 0) {
