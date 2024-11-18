@@ -782,6 +782,11 @@ exports.myProfile = async (req, res) => {
     // Fetch user's test results
     let testResults = await TestResult.find({ userId }).lean().sort({ createdAt: -1 });
 
+    // If no test results are found, set testResults to an empty array
+    if (!testResults || testResults.length === 0) {
+      testResults = [];
+    }
+
     // Prepend the new test result if provided
     if (newTestResult) {
       testResults = [newTestResult, ...testResults];
@@ -809,12 +814,12 @@ exports.myProfile = async (req, res) => {
     const offset = (parsedPage - 1) * parsedLimit;
 
     // Handle cases where the page is out of range
-    if (offset >= totalResults && totalResults > 0) {
-      return res.status(404).json({
-        message: "No results found for this page",
-        success: false,
-      });
-    }
+    // if (offset >= totalResults && totalResults > 0) {
+    //   return res.status(200).json({
+    //     message: "No results found for this page",
+    //     success: false,
+    //   });
+    // }
 
     // Get the paginated results
     const paginatedResults = testResults.slice(offset, offset + parsedLimit);
@@ -833,7 +838,7 @@ exports.myProfile = async (req, res) => {
       mobileNumber: user.mobileNumber,
       profilePicture: user.profilePicture,
       subscriptionStatus: user.subscriptionStatus,
-      testResults: paginatedResults,
+      testResults: paginatedResults,  // The testResults will be an empty array if no tests are found
       pagination: {
         totalResults,
         totalPages,
@@ -855,6 +860,7 @@ exports.myProfile = async (req, res) => {
     });
   }
 };
+
 
 exports.editProfile = async (req, res) => {
   try {
@@ -1696,14 +1702,14 @@ exports.userDailyStreak = async (req, res) => {
       const lastSubmissionDiff = (currentTime - new Date(userStrike.lastSubmissionTime)) / 1000; // in seconds
       const lastStrikeDiff = (currentTime - new Date(userStrike.lastStrikeUpdateTime)) / 1000; // in seconds
 
-      // Check if more than one minute has passed since the last strike update
-      if (lastStrikeDiff >= 60) {
-        if (lastSubmissionDiff <= 60) {
-          // If a test was submitted in the last minute, increase the streak
+      // Check if more than 24 hours have passed since the last strike update (24 hours = 86,400 seconds)
+      if (lastStrikeDiff >= 86400) { // 86400 seconds = 24 hours
+        if (lastSubmissionDiff <= 86400) { // Check if a test was submitted in the last 24 hours
+          // If a test was submitted in the last 24 hours, increase the streak
           userStrike.strikeCount += 1;
           userStrike.lastStrikeUpdateTime = currentTime;
         } else {
-          // If no test was submitted in the last one minute, reset the streak count
+          // If no test was submitted in the last 24 hours, reset the streak count
           userStrike.strikeCount = 0;
         }
       }
@@ -1727,6 +1733,7 @@ exports.userDailyStreak = async (req, res) => {
     });
   }
 };
+
 
 
 
