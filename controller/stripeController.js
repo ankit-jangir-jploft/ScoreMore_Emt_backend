@@ -1,23 +1,45 @@
 const { User, Subscription } = require("../models/User");
-
+const axios = require('axios'); // Import axios for making API requests
 require("dotenv").config();
-console.log("process.env.STRIPE_SECRET_KEY", process.env.STIPRE_SECRET_KEY)
-const stripe = require("stripe")(process.env.STIPRE_SECRET_KEY);
 
+console.log("process.env.STRIPE_SECRET_KEY", process.env.STIPRE_SECRET_KEY);
+const stripe = require("stripe")(process.env.STIPRE_SECRET_KEY);
 
 exports.checkout = async (req, res) => {
     try {
-        const { priceId, userId } = req.body;
-        console.log("priceID", priceId);
-        const planDuration = priceId === "price_1QHNA1JpjKGzAGnrwEWMpjpi" ? 30 : priceId === "price_1QFDhaJpjKGzAGnr7jSEIpaQ" ? 90 : priceId === "price_1QDle3JpjKGzAGnrk747qdyG" ?  365 : 0;
+        const { userId, priceId } = req.body;
 
-        // Check if the user already has an active subscription
+        // Step 1: Fetch subscription details from your admin API
+        const response = await axios.get(`${process.env.LOCAL_URL}/api/admin/getAllSubscriptions`);
+        const subscriptions = response.data.subscriptions;
+
+        // Step 2: Find the subscription details based on the priceId
+        const selectedSubscription = subscriptions.find(sub => sub.stripePriceId === priceId);
+
+        if (!selectedSubscription) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid price ID selected",
+            });
+        }
+
+        const { stripePriceId, title, subscriptionTime } = selectedSubscription;
+
+        // Map the subscription time to plan duration in days
+        const planDuration = subscriptionTime === "1_month" ? 30 :
+            subscriptionTime === "3_months" ? 90 :
+                subscriptionTime === "12_months" ? 365 : 0;
+
+        console.log("Stripe Price ID:", stripePriceId);
+        console.log("Plan Duration (in days):", planDuration);
+
+        // Step 3: Check if the user already has an active subscription
         const existingSubscription = await Subscription.findOne({ userId }).sort({ createdAt: -1 });
         if (existingSubscription) {
             const currentDate = new Date();
             const expiresAt = new Date(existingSubscription.expiresAt);
             const remainingDays = Math.ceil((expiresAt - currentDate) / (1000 * 60 * 60 * 24)); // Calculate remaining days
-            
+
             if (remainingDays > 0) {
                 return res.status(400).json({
                     success: false,
@@ -30,21 +52,21 @@ exports.checkout = async (req, res) => {
             }
         }
 
-        // Create the Stripe checkout session
+        // Step 4: Create the Stripe checkout session
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             mode: 'subscription',
             line_items: [{
-                price: priceId,
+                price: stripePriceId,
                 quantity: 1,
             }],
             success_url: process.env.SUCCESS_URL,
             cancel_url: process.env.FAILURE_URL,
         });
-        console.log("session", session)
-        console.log("planduration", planDuration);
 
-        // Save the new subscription data to the database
+        console.log("Stripe Session:", session);
+
+        // Step 5: Save the new subscription data to the database
         const newSubscription = new Subscription({
             userId: userId,
             transactionId: session.id,
@@ -52,20 +74,22 @@ exports.checkout = async (req, res) => {
             currency: session.currency,
             subscriptionStatus: 'pending', // Initial status until confirmed
             paymentMethod: 'card',
-            subscriptionPlan: priceId === "price_1QHNA1JpjKGzAGnrwEWMpjpi" ? "1 Month Subscription" : priceId === "price_1QFDhaJpjKGzAGnr7jSEIpaQ" ? "3 month Subscription" : priceId === "price_1QDle3JpjKGzAGnrk747qdyG" ? "12 month subscription" : "" ,
+            subscriptionPlan: priceId, // Use the title from the fetched data
             startedAt: new Date(),
             expiresAt: new Date(Date.now() + planDuration * 24 * 60 * 60 * 1000), // Set expiration date based on plan duration
         });
-        console.log("newSubscription", newSubscription)
+        console.log("New Subscription:", newSubscription);
 
         await newSubscription.save();
 
+        // Step 6: Update user with subscription ID
         const user = await User.findById(userId);
         if (user) {
             user.subscriptionId = newSubscription._id;
             await user.save();
         }
 
+        // Step 7: Send response with session ID and URL
         res.status(200).json({
             success: true,
             sessionId: session.id,
@@ -80,11 +104,12 @@ exports.checkout = async (req, res) => {
     }
 };
 
-exports.stripeSession = async (req, res) => { 
+
+exports.stripeSession = async (req, res) => {
     try {
         const { userId } = req.body; // Get userId from request body
-        const user = await User.findById(userId); 
-        console.log("user", user); // Find the user in the database
+        const user = await User.findById(userId);
+        console.log("User:", user); // Find the user in the database
 
         if (!user) {
             return res.status(404).json({
@@ -94,8 +119,8 @@ exports.stripeSession = async (req, res) => {
         }
 
         // Retrieve the latest subscription associated with the user
-        const subscription = await Subscription.findOne({ userId: userId }).sort({ createdAt: -1 });
-        console.log("subscription", subscription);
+        const subscription = await Subscription.findOne({ userId }).sort({ createdAt: -1 });
+        console.log("Subscription:", subscription);
 
         if (!subscription) {
             return res.status(404).json({
@@ -105,8 +130,8 @@ exports.stripeSession = async (req, res) => {
         }
 
         // Retrieve the checkout session using the transactionId from the subscription
-        const session = await stripe.checkout.sessions.retrieve(subscription.transactionId); // Assuming transactionId stores the Stripe session ID
-        console.log("session in subscription", session);
+        const session = await stripe.checkout.sessions.retrieve(subscription.transactionId);
+        console.log("Session in Subscription:", session);
 
         // Check if session exists
         if (!session) {
@@ -114,21 +139,19 @@ exports.stripeSession = async (req, res) => {
                 success: false,
                 message: "Session not found",
             });
-        } 
-        
+        }
+
         // Update user if session status is complete
         if (session.status === "complete") {
             subscription.subscriptionStatus = "active";
-            await subscription.save(); 
+            await subscription.save();
 
-           
-            user.subscriptionStatus = "active"; 
-            user.subscriptionId = subscription._id; 
-            await user.save(); 
+            user.subscriptionStatus = "active";
+            user.subscriptionId = subscription._id;
+            await user.save();
 
             console.log("Subscription and user updated to active status");
         }
-        console.log("user", user)
 
         res.status(200).json({
             success: true,
@@ -142,4 +165,3 @@ exports.stripeSession = async (req, res) => {
         });
     }
 };
-

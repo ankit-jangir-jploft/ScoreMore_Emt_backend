@@ -33,7 +33,7 @@ router.post("/updateQuestion", userController.updateQuestionData)
 router.post("/submitTestResult", userController.submitTestResults);
 router.post("/lastSubmitQuestion", userController.lastSubmitQuestion)
 router.post("/allExamRecord", userController.allExamRecord);
-router.post("/dailyStreak", userController.userdailyStreak)
+router.post("/dailyStreak", userController.userDailyStreak)
 
 
 // user subscription rouyr
