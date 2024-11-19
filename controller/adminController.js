@@ -105,6 +105,8 @@ exports.signInWithPassword = async (req, res) => {
   
 exports.getDashboardData = async (req, res) => {
     try {
+
+        console.log("req.body", req.body)
         const { filters } = req.body;
 
         let startsDate, endsDate;
@@ -162,8 +164,12 @@ exports.getDashboardData = async (req, res) => {
 
         const testResults = await TestResult.find({
             ...(filters?.testType && { testType: filters.testType }),
-            date: { $gte: startDate, $lte: endDate }
+            createdAt: { $gte: startsDate, $lte: endsDate }
         }).lean();
+        
+        // console.log("Filtered Test Results:", testResults);
+        
+        
 
         const testStatsMap = testResults.reduce((acc, curr) => {
             const testType = curr.testType;

@@ -14,7 +14,10 @@ const UserStrike = require("../models/StrikeCount");
 const ejs = require("ejs");
 const moment = require("moment");
 const fs = require('fs');
+const schedule = require("node-schedule");
 const Contact = require("../models/Contact");
+const Reminder = require("../models/Reminder");
+const { cleanupCompletedReminders } = require("../utils/CleanUpReminders");
 
 // Adjust the paths as per your project structure
 const templatePath = path.join(__dirname, '..', 'views', 'templates', 'transactionInvoice.ejs');
@@ -1929,23 +1932,210 @@ const generatePDFBuffer = async (html, invoiceId) => {
   return pdfPath; // Return the path for further use
 };
 
+exports.sendReminder = async (req, res) => {
+  try {
+    // Extract token from the Authorization header
+    const token = req.headers.authorization?.split(" ")[1];
 
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "No token provided!",
+      });
+    }
 
+    // Verify the token and get the userId
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.SECRET_KEY);
+    } catch (error) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or expired token!",
+      });
+    }
 
+    const userId = decoded.userId;
 
+    // Find user in the database
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found!",
+      });
+    }
 
+    const email = user.email;
 
+    // Validate request body
+    const { message, time, allDay, dateTime } = req.body;
+    if (!message || (allDay && !time) || (!allDay && !dateTime)) {
+      return res.status(400).json({
+        success: false,
+        message: "Message, time (for daily), and dateTime (for one-time reminders) are required.",
+      });
+    }
 
+    // Parse time into hours and minutes (handles AM/PM)
+    const timeMatch = time.match(/^(\d+):(\d+)\s?(AM|PM)$/i);
+    if (!timeMatch) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid time format. Expected HH:mm AM/PM.",
+      });
+    }
 
+    let [_, hour, minute, meridian] = timeMatch;
+    hour = parseInt(hour);
+    minute = parseInt(minute);
+    if (meridian.toUpperCase() === "PM" && hour !== 12) hour += 12;
+    if (meridian.toUpperCase() === "AM" && hour === 12) hour = 0;
 
+    // Save the new reminder in the database
+    const newReminder = new Reminder({
+      email,
+      message,
+      time,
+      allDay: allDay || false,
+      dateTime: allDay ? null : new Date(dateTime),
+    });
 
+    await newReminder.save();
 
+    // Schedule email based on allDay flag
+    if (allDay) {
+      // Daily reminder at the specified time
+      schedule.scheduleJob({ hour, minute }, async () => {
+        try {
+          await sendEmail({
+            from: process.env.MAIL_ID,
+            to: email,
+            subject: "Daily Reminder",
+            text: message,
+          });
+          console.log(`Daily reminder sent to ${email}`);
 
+          // Update sentDate after the email is sent
+          await Reminder.findByIdAndUpdate(
+            newReminder._id,
+            { sentDate: new Date() },
+            { new: true }
+          );
+        } catch (emailError) {
+          console.error(`Error sending daily reminder to ${email}:`, emailError);
+        }
+      });
 
+      return res.json({
+        success: true,
+        message: "Daily reminder email scheduled and saved in the database.",
+        reminder: newReminder,
+      });
+    } else {
+      // One-time reminder at the specified date and time
+      const scheduledDate = new Date(dateTime);
 
+      if (scheduledDate < new Date()) {
+        return res.status(400).json({
+          success: false,
+          message: "Scheduled time cannot be in the past.",
+        });
+      }
 
+      schedule.scheduleJob(scheduledDate, async () => {
+        try {
+          await sendEmail({
+            from: process.env.MAIL_ID,
+            to: email,
+            subject: "One-time Reminder",
+            text: message,
+          });
+          console.log(`One-time reminder sent to ${email}`);
 
+          // Update sentDate after the email is sent
+          await Reminder.findByIdAndUpdate(
+            newReminder._id,
+            { sentDate: new Date() },
+            { new: true }
+          );
+        } catch (emailError) {
+          console.error(`Error sending one-time reminder to ${email}:`, emailError);
+        }
+      });
 
+      return res.json({
+        success: true,
+        message: "One-time reminder email scheduled and saved in the database.",
+        reminder: newReminder,
+      });
+    }
+  } catch (error) {
+    console.error("Error scheduling reminder:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to schedule reminder. Please try again later.",
+    });
+  }
+};
+
+exports.getUserReminders = async (req, res) => {
+  try {
+    // Extract token from Authorization header
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "No token provided!",
+      });
+    }
+
+    // Verify token and extract userId
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.SECRET_KEY);
+    } catch (error) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or expired token!",
+      });
+    }
+
+    const userId = decoded.userId;
+    
+    await cleanupCompletedReminders();
+    // Fetch user from database
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found!",
+      });
+    }
+
+    // Get all reminders associated with the user's email
+    const reminders = await Reminder.find({ email: user.email });
+
+    if (reminders.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No reminders found for this user.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "User reminders retrieved successfully.",
+      reminders,
+    });
+  } catch (error) {
+    console.error("Error fetching user reminders:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch reminders. Please try again later.",
+    });
+  }
+};
 
 
 
