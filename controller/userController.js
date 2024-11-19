@@ -2081,7 +2081,7 @@ exports.sendReminder = async (req, res) => {
 
 exports.getUserReminders = async (req, res) => {
   try {
-    // Extract token from Authorization header
+    // Extract token from Authorization head
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) {
       return res.status(401).json({
