@@ -12,6 +12,7 @@ const stripeRoute = require("./routes/stripeRoute");
 const flashcardRoute = require("./routes/flashcard");
 const policyRoute = require("./routes/policyRoutes");
 const faqRoute = require("./routes/FAQRoutes");
+const reminderRoutes = require("./routes/reminderRoutes");
 const connectDb = require("./utils/db");
 require("dotenv").config();
 
@@ -46,6 +47,7 @@ app.use("/api/v1/stripe", stripeRoute);
 app.use("/api/v1/flashcard", flashcardRoute);
 app.use("/api/v1/policies", policyRoute);
 app.use("/api/v1/faqs", faqRoute);
+app.use("/api/v1/reminders", reminderRoutes)
 
 // Error handling middleware
 app.use((err, req, res, next) => {

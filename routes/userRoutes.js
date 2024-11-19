@@ -44,7 +44,10 @@ router.get("/invoice/:id", userController.getInvoicetemplate);
 
 // user contact us 
 router.post("/contact", userController.contactUs);
-router.post("/userRating", userController.rateUs)
+router.post("/userRating", userController.rateUs);
+
+router.post("/set-reminder", userController.sendReminder);
+router.get("/get-reminder", userController.getUserReminders);
 
 
 module.exports = router;
