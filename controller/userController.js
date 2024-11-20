@@ -435,7 +435,7 @@ exports.socialLogin = async (req, res) => {
       return res.status(200).json({
         status: 200,
         message: "Login Successfully",
-        data: userResponse,
+        user: userResponse,
         token: token,
         LastStep: user.CompleteSteps,  // Additional user-related data
       });
@@ -474,7 +474,7 @@ exports.socialLogin = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "User created successfully",
-      data: newUserResponse,
+      user: newUserResponse,
       token: token,
     });
     }
@@ -1770,17 +1770,6 @@ exports.userDailyStreak = async (req, res) => {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
 exports.contactUs = async (req, res) => {
   const { name, email, message } = req.body;
 
@@ -2137,6 +2126,22 @@ exports.getUserReminders = async (req, res) => {
   }
 };
 
+exports.deleteReminder = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const reminder = await Reminder.findByIdAndDelete(id);
+
+    if (!reminder) {
+        return res.status(404).json({ success: false, message: 'Reminder not found' });
+    }
+
+    res.json({ success: true, message: 'Reminder deleted successfully' });
+} catch (error) {
+    console.error('Error deleting reminder:', error);
+    res.status(500).json({ success: false, message: 'An error occurred while deleting the reminder' });
+}
+}
+
 
 
 
@@ -2165,8 +2170,6 @@ async function sendEmail(mailOptions) {
     return false;
   }
 }
-
-
 
 
 
