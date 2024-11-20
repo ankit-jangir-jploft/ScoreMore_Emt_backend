@@ -991,7 +991,7 @@ exports.getUserDetail = async (req, res) => {
 
 exports.userQuestionData = async (req, res) => {
   try {
-    // console.log("req.body", req.body);
+    console.log("req.body", req.body);
     const {
       userId,
       questionId,
@@ -1791,8 +1791,18 @@ exports.rateUs = async (req, res) => {
     if (!rating || !userId) {
       return res.status(400).json({ message: 'Rating and user ID are required' });
     }
+    const existingRating = await UserRating.findOne({ userId });
 
-    // Save the rating in the database
+    if (existingRating) {
+      // Update the existing rating
+      existingRating.rating = rating;
+      existingRating.description = description || existingRating.description; 
+      await existingRating.save();
+
+      return res.status(200).json({ message: 'Thank you for updating your feedback!', data: existingRating });
+    }
+
+    // Create a new rating if none exists
     const newRating = new UserRating({
       userId,
       rating,
@@ -1807,6 +1817,8 @@ exports.rateUs = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+
 
 
 
