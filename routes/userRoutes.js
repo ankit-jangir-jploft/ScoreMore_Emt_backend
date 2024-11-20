@@ -48,6 +48,7 @@ router.post("/userRating", userController.rateUs);
 
 router.post("/set-reminder", userController.sendReminder);
 router.get("/get-reminder", userController.getUserReminders);
+router.delete("/delete-reminder/:id", userController.deleteReminder);
 
 
 module.exports = router;
