@@ -187,6 +187,10 @@ exports.deleteFlashcard = async (req, res) => {
         // Proceed to delete the flashcard
         await Flashcard.findByIdAndDelete(id);
 
+
+
+
+
         return res.status(200).json({
             message: "Flashcard deleted successfully",
             success: true // Return the deleted flashcard data (optional)

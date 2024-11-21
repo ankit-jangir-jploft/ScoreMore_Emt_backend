@@ -401,24 +401,31 @@ exports.verifyOTP = async (req, res) => {
 
 exports.socialLogin = async (req, res) => {
   try {
+    console.log("re.bosd", req.body);
     const { email, socialId, firstName, lastName, registrationType } = req.body;
 
-    // Check if user exists with the given email and socialId
-    let user = await User.findOne({ email, socialId, isDeleted: false });
+    // Check if the user exists with the given email
+    let user = await User.findOne({ email });
     console.log("user", user)
-
-    // Check if the user is blocked
-    if (user?.isBlocked) {
-      return res.status(201).json({ status: 201, message: "User Blocked" });
-    }
-    console.log("it hitssss")
-
-    // User found, generate a token
+      
+    // If user exists
     if (user) {
+      // Check if the user is blocked
+      if (user.isBlocked) {
+        return res.status(403).json({ status: 403, message: "User Blocked" });
+      }
+
+      // Update `socialId` if necessary
+      if (!user.socialId || user.socialId !== socialId) {
+        user.socialId = socialId;
+        await user.save(); // Save the updated `socialId`
+      }
+
+      // Generate a token
       const tokenData = { userId: user._id };
       const token = jwt.sign(tokenData, process.env.SECRET_KEY);
 
-      // Prepare user data to send in the response
+      // Prepare user response
       const userResponse = {
         _id: user._id,
         firstName: user.firstName,
@@ -429,19 +436,19 @@ exports.socialLogin = async (req, res) => {
         isBlocked: user.isBlocked,
         isEmailVerified: user.isEmailVerified,
         mobileNumber: user.mobileNumber,
-        registrationType: user.registrationType,  // Optional, based on your needs
+        registrationType: user.registrationType,
       };
 
       return res.status(200).json({
-        status: 200,
+        success: true,
         message: "Login Successfully",
         user: userResponse,
         token: token,
-        LastStep: user.CompleteSteps,  // Additional user-related data
+        LastStep: user.CompleteSteps,
       });
-    } else {
-      
-    // User not found, create a new one
+    }
+
+    // If no user exists, create a new user
     let newUser = new User({
       email,
       socialId,
@@ -450,14 +457,14 @@ exports.socialLogin = async (req, res) => {
       registrationType,
     });
 
-    // Save new user to the database
+    // Save the new user
     await newUser.save();
 
-    // Generate token for the new user
-    const tokenData = { userId: newUser._id };  // Use newUser._id instead of user._id
+    // Generate a token for the new user
+    const tokenData = { userId: newUser._id };
     const token = jwt.sign(tokenData, process.env.SECRET_KEY);
 
-    // Prepare user data to send in the response
+    // Prepare new user response
     const newUserResponse = {
       _id: newUser._id,
       firstName: newUser.firstName,
@@ -477,9 +484,6 @@ exports.socialLogin = async (req, res) => {
       user: newUserResponse,
       token: token,
     });
-    }
-
-
   } catch (error) {
     console.error("Error in social login:", error);
     return res.status(500).json({
@@ -488,6 +492,8 @@ exports.socialLogin = async (req, res) => {
     });
   }
 };
+
+
 
 
 
@@ -2118,8 +2124,8 @@ exports.getUserReminders = async (req, res) => {
     const reminders = await Reminder.find({ email: user.email });
 
     if (reminders.length === 0) {
-      return res.status(404).json({
-        success: false,
+      return res.status(200).json({
+        success: true,
         message: "No reminders found for this user.",
       });
     }
