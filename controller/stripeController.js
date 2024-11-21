@@ -38,9 +38,9 @@ exports.checkout = async (req, res) => {
         if (existingSubscription) {
             const currentDate = new Date();
             const expiresAt = new Date(existingSubscription.expiresAt);
-            const remainingDays = Math.ceil((expiresAt - currentDate) / (1000 * 60 * 60 * 24)); // Calculate remaining days
+            const remainingDays = Math.ceil((expiresAt - currentDate) / (1000 * 60 * 60 * 24)); 
 
-            if (remainingDays > 0) {
+            if (remainingDays > 0 && existingSubscription.subscriptionStatus === "active") {
                 return res.status(400).json({
                     success: false,
                     message: `You already have an active subscription. Days remaining: ${remainingDays}`
@@ -66,30 +66,32 @@ exports.checkout = async (req, res) => {
 
         console.log("Stripe Session:", session);
 
-        // Step 5: Save the new subscription data to the database
+        // Step 5: Create the new subscription object only after the session is created
         const newSubscription = new Subscription({
             userId: userId,
             transactionId: session.id,
             paymentAmount: session.amount_total / 100,
             currency: session.currency,
-            subscriptionStatus: 'pending', // Initial status until confirmed
+            subscriptionStatus: 'pending', // Start as pending until confirmed
             paymentMethod: 'card',
-            subscriptionPlan: priceId, // Use the title from the fetched data
+            subscriptionPlan: priceId,
             startedAt: new Date(),
-            expiresAt: new Date(Date.now() + planDuration * 24 * 60 * 60 * 1000), // Set expiration date based on plan duration
+            expiresAt: new Date(Date.now() + planDuration * 24 * 60 * 60 * 1000), // Set expiration date
         });
+
         console.log("New Subscription:", newSubscription);
 
+        // Step 6: Save the subscription after session creation
         await newSubscription.save();
 
-        // Step 6: Update user with subscription ID
+        // Step 7: Update user with subscription ID only after the subscription is saved
         const user = await User.findById(userId);
         if (user) {
             user.subscriptionId = newSubscription._id;
             await user.save();
         }
 
-        // Step 7: Send response with session ID and URL
+        // Step 8: Send response with session ID and URL
         res.status(200).json({
             success: true,
             sessionId: session.id,
@@ -103,6 +105,7 @@ exports.checkout = async (req, res) => {
         });
     }
 };
+
 
 
 exports.stripeSession = async (req, res) => {
