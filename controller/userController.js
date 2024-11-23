@@ -1,6 +1,5 @@
-const { User, UserQuestionData, Subscription, UserRating } = require("../models/User");
+
 const Question = require("../models/question");
-const TestResult = require('../models/TestResult');
 const bcrypt = require("bcrypt");
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
@@ -25,14 +24,49 @@ const pdfDirectory = path.join(__dirname, '..', 'public', 'pdfs');
 const publicDirectory = path.join(__dirname, '..', 'public');
 
 
+const { User, UserQuestionData, Subscription, UserRating } = require("../models/User");
+const TestResult = require('../models/TestResult');
+
+
+async function updateGuestReferences(oldUserId, newUserId) {
+  console.log("oldUserId", oldUserId)
+  console.log("newUserId", newUserId)
+  try {
+    // Update the `userId` in the `UserQuestionData` model
+    await UserQuestionData.updateMany(
+      { userId: oldUserId }, // Match old user ID
+      { $set: { userId: newUserId } } // Set new user ID
+    );
+
+ 
+
+    // Update the `userId` in the `TestResult` model
+    await TestResult.updateMany(
+      { userId: oldUserId }, // Match old user ID
+      { $set: { userId: newUserId } } // Set new user ID
+    );
+
+    // Update the `isGuest` field in the `User` model
+    await User.updateOne(
+      { _id: newUserId }, // Match the new user ID
+      { $set: { isGuest: false } } // Mark the user as a regular user
+    );
+
+    console.log("References updated successfully.");
+  } catch (error) {
+    console.error("Error updating guest references:", error);
+    throw new Error("Failed to update guest references");
+  }
+}
+
+
+
 exports.signup = async (req, res) => {
   try {
-    // console.log("req.body",req.body);
-    const { firstName, lastName, email, password, confirmPassword, role = "user" } = req.body;
-    // console.log("fullname, email, phoneNumber, password ", firstName, lastName, email, password, confirmPassword);
+    const { firstName, lastName, email, password, confirmPassword, role = "user", guestId } = req.body;
 
     // Check for required fields
-    if (!email || !confirmPassword || !password) {
+    if (!email || !password || !confirmPassword) {
       return res.status(400).json({
         message: "Email, password, and confirm password are required!",
         success: false,
@@ -47,25 +81,49 @@ exports.signup = async (req, res) => {
       });
     }
 
-    // Check if user already exists
-    const user = await User.findOne({ email });
-    if (user) {
+    // Check if a user already exists with this email
+    const existingUser = await User.findOne({ email });
+    if (existingUser && !existingUser.isGuest) {
       return res.status(400).json({
         message: "User already exists with this email!",
         success: false,
       });
     }
 
-    //cover password into hash
+    // Check if a guest user exists with the same guestId
+    const guestUser = guestId ? await User.findById(guestId) : null;
+    console.log("guestUser", guestUser)
+
+    // Hash the password
     const hashPassword = await bcrypt.hash(password, 10);
-    const newUser = await User.create({
-      firstName,
-      lastName,
-      email,
-      password: hashPassword,
-      confirmPassword: hashPassword,
-      role,
-    });
+
+    let newUser;
+    if (guestUser) {
+      guestUser.firstName = firstName || guestUser.firstName;
+      guestUser.lastName = lastName || guestUser.lastName;
+      guestUser.email = email || guestUser.email;
+      guestUser.password = hashPassword;
+      guestUser.isGuest = false;
+      guestUser.isActive = true;
+      guestUser.role = role;
+      guestUser.updatedAt = new Date();
+
+      newUser = await guestUser.save();
+      console.log("newUser", newUser);
+      await updateGuestReferences(guestUser._id, newUser._id);
+      console.log("newUser", newUser, guestUser);
+    } else {
+      newUser = await User.create({
+        firstName,
+        lastName,
+        email,
+        password: hashPassword,
+        confirmPassword: hashPassword,
+        role,
+        isGuest: false,
+        isActive: true,
+      });
+    }
 
     const mailOptions = {
       from: process.env.MAIL_ID,
@@ -88,9 +146,6 @@ exports.signup = async (req, res) => {
       `,
     };
 
-
-
-
     const emailSent = await sendEmail(mailOptions);
     if (!emailSent) {
       return res.status(500).json({
@@ -100,7 +155,7 @@ exports.signup = async (req, res) => {
     }
 
     return res.status(201).json({
-      message: "otp send on your ragistered mail id",
+      message: "Sign up successful. Verification email sent.",
       success: true,
     });
   } catch (err) {
@@ -810,6 +865,7 @@ exports.myProfile = async (req, res) => {
     }
 
     // Find user by ID without sensitive fields
+  
     const user = await User.findById(userId).select('-password -otp -otpExpiration');
     if (!user) {
       return res.status(404).json({
@@ -819,6 +875,10 @@ exports.myProfile = async (req, res) => {
     }
 
     // Fetch user's test results
+    const userIdMatchCondition = mongoose.Types.ObjectId.isValid(userId)
+    ? new mongoose.Types.ObjectId(userId) // If valid ObjectId
+    : userId; 
+
     let testResults = await TestResult.find({ userId }).lean().sort({ createdAt: -1 });
 
     // If no test results are found, set testResults to an empty array
@@ -1191,6 +1251,8 @@ exports.updateQuestionData = async (req, res) => {
   }
 };
 
+
+
 exports.submitTestResults = async (req, res) => {
   try {
     // console.log("test req.body", req.body);
@@ -1347,8 +1409,13 @@ exports.allExamRecord = async (req, res) => {
     // console.log("User ID:", userId);
 
     // Check if the user has any question data
+    //  const userIdMatchCondition = mongoose.Types.ObjectId.isValid(userId)
+    //   ? new mongoose.Types.ObjectId(userId) 
+    //   : userId; // If not ObjectId, use as-is
+
+    // Find user questions
     const userQuestions = await UserQuestionData.find({ userId }).populate('questionId');
-    // console.log("User Questions Found:", userQuestions);
+    console.log("User Questions Found:", userQuestions);
 
     if (userQuestions.length === 0) {
       return res.status(404).json({
@@ -1603,6 +1670,42 @@ exports.getUserTransactionHistory = async (req, res) => {
     });
   }
 };
+
+
+exports.createGuest = async (req, res) => {
+  try {
+      const { guestId } = req.body;
+
+      // Check if the guest user already exists
+      let guestUser = await User.findOne({ guestId });
+      if (!guestUser) {
+          // If the guest user does not exist, create a new one
+          guestUser = new User({
+              guestId,
+              isGuest: true, 
+              isBlocked: false, 
+          });
+
+          await guestUser.save();
+      }
+
+      // Generate a JWT token for the guest user
+      const tokenData = { userId: guestUser._id };
+      const token = jwt.sign(tokenData, process.env.SECRET_KEY
+      );
+     console.log("guestUser", guestUser)
+      // Send the response with the user data and token
+      res.status(201).json({
+          success: true,
+          user: guestUser,
+          token,  // Include the JWT token in the response
+      });
+  } catch (error) {
+      console.error('Error creating guest user:', error);
+      res.status(500).json({ success: false, message: 'Error creating guest user!' });
+  }
+};
+
 
 
 

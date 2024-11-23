@@ -536,7 +536,7 @@ function shuffleArray(array) {
 // };
 
 exports.filterQuestions = async (req, res) => {
-  console.log("req.body", req.body);
+  // console.log("req.body", req.body);
 
   const {
     userId,
@@ -551,7 +551,7 @@ exports.filterQuestions = async (req, res) => {
 
   try {
     if (cardType === "readinessTest") {
-      console.log("It hits readiness");
+      // console.log("It hits readiness");
 
       // Fetch all questions
       const question = await Question.find();
@@ -589,8 +589,8 @@ exports.filterQuestions = async (req, res) => {
         });
 
         await filteredQuestionEntry.save();
-        console.log("filteredleth", questionsData.length)
-        console.log("Not enough questions, returning all available questions.");
+        // console.log("filteredleth", questionsData.length)
+        // console.log("Not enough questions, returning all available questions.");
         return res.status(200).json({
           success: true,
           message: "All available questions retrieved as the total number is less than or equal to the requested amount",
@@ -646,7 +646,7 @@ exports.filterQuestions = async (req, res) => {
         remainingQuestions -= additionalQuestions;
       });
 
-      console.log("Subject Questions Distribution:", subjectQuestionsCount);
+      // console.log("Subject Questions Distribution:", subjectQuestionsCount);
 
 
       const subjectKeys = Object.keys(subjectDistribution);
@@ -692,11 +692,11 @@ exports.filterQuestions = async (req, res) => {
         );
 
         const requiredSubjectQuestions = subjectQuestionsCount[subject];
-        console.log(`Subject: ${subject}, Required Questions: ${requiredSubjectQuestions}`);
+        // console.log(`Subject: ${subject}, Required Questions: ${requiredSubjectQuestions}`);
 
         if (subjectFilteredQuestions.length < requiredSubjectQuestions) {
           remainingQuestionsToRedistribute += requiredSubjectQuestions - subjectFilteredQuestions.length;
-          console.log(`Not enough questions for ${subject}, adjusting remaining questions for redistribution.`);
+          // console.log(`Not enough questions for ${subject}, adjusting remaining questions for redistribution.`);
           finalQuestions = [...finalQuestions, ...subjectFilteredQuestions];
           continue; // Move to the next subject
         }
@@ -714,7 +714,7 @@ exports.filterQuestions = async (req, res) => {
         ).slice(0, levelCount.hard);
 
         const totalSelected = easyQuestions.length + mediumQuestions.length + hardQuestions.length;
-        console.log(`Subject: ${subject}, Easy: ${easyQuestions.length}, Medium: ${mediumQuestions.length}, Hard: ${hardQuestions.length}`);
+        // console.log(`Subject: ${subject}, Easy: ${easyQuestions.length}, Medium: ${mediumQuestions.length}, Hard: ${hardQuestions.length}`);
 
         // Adjust if total selected is less than required
         if (totalSelected < requiredSubjectQuestions) {
@@ -747,7 +747,7 @@ exports.filterQuestions = async (req, res) => {
 
       // Redistribute remaining questions across other subjects
       if (remainingQuestionsToRedistribute > 0) {
-        console.log("Redistributing remaining questions across other subjects.");
+        // console.log("Redistributing remaining questions across other subjects.");
         for (const subject of subjectKeys) {
           if (remainingQuestionsToRedistribute === 0) break;
 
@@ -774,7 +774,7 @@ exports.filterQuestions = async (req, res) => {
 
       // Shuffle final questions and ensure exact number of requested questions
       finalQuestions = shuffleArray(finalQuestions).slice(0, numberOfQuestions);
-      console.log("finalQuestions finalQuestions", finalQuestions)
+      // console.log("finalQuestions finalQuestions", finalQuestions)
 
 
       // Save filtered questions to the database
@@ -784,7 +784,7 @@ exports.filterQuestions = async (req, res) => {
       });
 
       await filteredQuestionEntry.save();
-      console.log("filteredleth", finalQuestions.length)
+      // console.log("filteredleth", finalQuestions.length)
 
       // Send the response back to the client
       res.status(200).json({
@@ -796,14 +796,14 @@ exports.filterQuestions = async (req, res) => {
     } 
     else {
       const userPreviousQuestions = await UserQuestionData.find({ userId });
-      console.log("userPrevious Questions---->", userPreviousQuestions);
+      // console.log("userPrevious Questions---->", userPreviousQuestions);
     
       // Map user question data for easier lookup
       const userQuestionMap = userPreviousQuestions.reduce((acc, question) => {
         acc[question.questionId.toString()] = question; // Ensure we're using the questionId for lookup as a string
         return acc;
       }, {});
-      console.log("userQuestionMap", userQuestionMap);
+      // console.log("userQuestionMap", userQuestionMap);
     
       const question = await Question.find(); // Fetch the question data
     
@@ -843,7 +843,7 @@ exports.filterQuestions = async (req, res) => {
         return matchesSubject && matchesLevel && question.isActive;
       });
     
-      console.log("Filtered Questions after subject/level filter:", JSON.stringify(filteredQuestions, null, 2));
+      // console.log("Filtered Questions after subject/level filter:", JSON.stringify(filteredQuestions, null, 2));
     
       // Create an array to store all matching questions
       let matchedQuestions = new Map(); // Use Map to ensure uniqueness by questionId
@@ -890,15 +890,15 @@ exports.filterQuestions = async (req, res) => {
       // Convert matchedQuestions map back to an array
       const finalFilteredQuestions = Array.from(matchedQuestions.values());
     
-      console.log("Filtered Questions after questionType filter:", JSON.stringify(finalFilteredQuestions, null, 2));
+      // console.log("Filtered Questions after questionType filter:", JSON.stringify(finalFilteredQuestions, null, 2));
     
       // Shuffle the filtered questions
       const shuffledQuestions = shuffleArray(finalFilteredQuestions);
-      console.log("Filtered Questions after shuffling:======", shuffledQuestions);
+      // console.log("Filtered Questions after shuffling:======", shuffledQuestions);
     
       // Slice the array to match the requested number of questions, ensuring it doesn't exceed the length
       const result = shuffledQuestions.slice(0, Math.min(numberOfQuestions, shuffledQuestions.length));
-      console.log("Resulting Questions:", result);
+      // console.log("Resulting Questions:", result);
     
       // Save filtered questions in the database
       const filteredQuestionEntry = new FilteredQuestion({

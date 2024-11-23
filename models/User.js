@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
 // User Schema
+
 const userSchema = new mongoose.Schema(
   {
     firstName: {
@@ -13,7 +14,10 @@ const userSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-      required: true,
+      required: function () {
+        // Email should be required only for regular users, not for guests
+        return !this.isGuest;
+      },
       unique: true,
       trim: true,
       lowercase: true,
@@ -29,7 +33,10 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      // required: true,
+      required: function () {
+        // Password is required only for non-guest users
+        return !this.isGuest;
+      },
     },
     profilePicture: {
       type: String,
@@ -47,9 +54,9 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    isBlocked : {
-      type : Boolean,
-      default : false
+    isBlocked: {
+      type: Boolean,
+      default: false,
     },
     socialId: {
       type: String,
@@ -66,15 +73,24 @@ const userSchema = new mongoose.Schema(
       ref: "Subscription",
       required: false,
     },
+    isGuest: {
+      type: Boolean,
+      default: false, // This is to indicate if the user is a guest
+    },
+    guestId: {
+      type: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    },
   },
   {
     timestamps: true,
   }
 );
 
+
+
 const SubscriptionSchema = new mongoose.Schema({
   userId: {
-      type: mongoose.Schema.Types.ObjectId,
+       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true
   },
@@ -169,14 +185,15 @@ const userQuestionDataSchema = new mongoose.Schema(
 );
 
 
+
 const userFlashcardSchema = new mongoose.Schema({
   userId: {
-      type: mongoose.Schema.Types.ObjectId,
+    type: mongoose.Schema.Types.ObjectId, 
       ref: 'User',
       required: true
   },
   flashcardId: {
-      type: mongoose.Schema.Types.ObjectId,
+    type: mongoose.Schema.Types.ObjectId, 
       ref: 'Flashcard',
       required: true
   },
@@ -203,7 +220,7 @@ const userFlashcardSchema = new mongoose.Schema({
 
 
 const ratingSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  userId: { type: mongoose.Schema.Types.ObjectId,  ref: 'User', required: true },
   rating: { type: Number, required: true, min: 1, max: 5 },
   description: { type: String, trim: true },
   createdAt: { type: Date, default: Date.now }
