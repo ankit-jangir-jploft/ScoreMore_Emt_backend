@@ -4,7 +4,9 @@ const mongoose = require("mongoose");
 const testResultSchema = new mongoose.Schema(
   {
     userId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId
+      
+      ,
       required: true,
       ref: 'User',
     },
@@ -51,16 +53,15 @@ const testResultSchema = new mongoose.Schema(
     date: {
       type: Date,
       default: function () {
-        return new Date(); // Automatically store the current date
+        return new Date(); 
       },
     },
   },
   {
-    timestamps: true, // Automatically add createdAt and updatedAt fields
+    timestamps: true,
   }
 );
 
-// Pre-save middleware to ensure date is formatted properly
 testResultSchema.pre('save', function (next) {
   if (this.date) {
     // If date is already set, ensure it's properly formatted

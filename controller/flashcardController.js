@@ -320,11 +320,16 @@ exports.getRoadmapSubject = async (req, res) => {
                 subject,
                 isUnlocked,
                 isCompleted,
-                // isPending,
                 totalFlashcards: totalFlashcardsForSubject,
                 submittedFlashcards: totalUserSubmissions,
             };
         }));
+
+        // Define the custom order of subjects
+        const customOrder = ['medical', 'airway', 'cardiology', 'trauma', 'EMS Operations'];
+
+        // Sort subjectStatus based on the customOrder array
+        subjectStatus.sort((a, b) => customOrder.indexOf(a.subject) - customOrder.indexOf(b.subject));
 
         // Order subjects: Completed first, then the current subject
         const completedSubjects = subjectStatus.filter(subject => subject.isCompleted);
@@ -360,6 +365,7 @@ exports.getRoadmapSubject = async (req, res) => {
         return res.status(500).json({ message: "Internal server error", success: false });
     }
 };
+
 
 exports.getRoadmap = async (req, res) => {
     try {

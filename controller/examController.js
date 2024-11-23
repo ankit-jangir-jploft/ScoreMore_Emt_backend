@@ -4,20 +4,26 @@ const Question = require("../models/question");
 const TestResult = require('../models/TestResult');
 const jwt = require("jsonwebtoken");
 const moment = require("moment");
-const { trusted } = require("mongoose");
+const { default: mongoose } = require("mongoose");
 const { datacatalog_v1 } = require("googleapis");
 
 exports.examRecord = async (req, res) => {
     try {
+      console.log("req.body", req.body)
         const { testId, userId } = req.body;
+        console.log("userId",typeof userId)
 
         // Fetch all questions related to the test
         const findAllTestQuestion = await FilteredQuestion.find({ testId });
-        console.log("findAllTestQuestion", findAllTestQuestion);
+        // console.log("findAllTestQuestion", findAllTestQuestion);
 
-        // Fetch user question data and populate question details
+       
+        
         const findData = await UserQuestionData.find({ userId, testId })
             .populate('questionId');
+            
+
+            console.log("findData", findData)
 
         if (!findAllTestQuestion || findAllTestQuestion.length === 0) {
             return res.status(404).json({
@@ -90,7 +96,6 @@ exports.examRecord = async (req, res) => {
  
  exports.todayDailyChallangeStatus = async (req, res) => {
    try {
-     // Extract token from the Authorization header
      const token = req.headers.authorization?.split(' ')[1];
      if (!token) {
        return res.status(401).json({
@@ -99,21 +104,23 @@ exports.examRecord = async (req, res) => {
        });
      }
  
-     // Verify the token and extract the userId
      const decoded = jwt.verify(token, process.env.SECRET_KEY);
      const userId = decoded.userId;
  
-     // Get the start and end of the day in UTC
      const startOfDay = moment().startOf('day').toDate();
      const endOfDay = moment().endOf('day').toDate();
+
+     const userIdMatchCondition = mongoose.Types.ObjectId.isValid(userId)
+     ? new mongoose.Types.ObjectId(userId) 
+     : userId; 
+     console.log("userIdMatchCondition", userIdMatchCondition)
  
-     // Step 1: Check if today's daily challenge test is done
      const todayDailyChallenge = await TestResult.findOne({
-       userId,
+       userId ,
        testType: 'dailyChallenge',
        createdAt: { $gte: startOfDay, $lte: endOfDay },
      });
- 
+
      if (!todayDailyChallenge) {
        return res.status(200).json({
          status: 'not done',

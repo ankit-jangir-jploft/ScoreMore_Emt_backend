@@ -10,7 +10,8 @@ router.post("/signin", userController.signInWithPassword);
 router.post('/signin/otp', userController.signInWithOTP);
 router.post('/verify/otp', userController.verifyOTP);
 router.get("/verify-email", userController.verifyEmail);
-router.post("/socialLogin", userController.socialLogin)
+router.post("/socialLogin", userController.socialLogin);
+router.post("/createGuest", userController.createGuest);
 
 // My Profile
 router.post("/myProfile", isAuthenticated, userController.myProfile);
