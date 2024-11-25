@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const userController = require("../controller/userController");
 const isAuthenticated = require("../middleware/isAuthanticated");
-const { upload } = require("../middleware/multer");
+const { uploadProfilePicture } = require("../middleware/multer");
 
 // Publi
 router.post("/signup", userController.signup);
@@ -22,7 +22,8 @@ router.post('/forgotPassword', userController.forgotPassword);
 router.post("/resetPassword", userController.resetPassword);
 
 // Protected routes (require authentication)
-router.patch("/editProfile", isAuthenticated, upload, userController.editProfile); 
+router.patch("/editProfile", isAuthenticated, uploadProfilePicture, userController.editProfile); 
+
 router.post("/logout", isAuthenticated, userController.logout); 
 
 
