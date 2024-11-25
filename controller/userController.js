@@ -72,7 +72,7 @@ exports.signup = async (req, res) => {
         success: false,
       });
     }
-    
+
     // Check if passwords match
     if (password !== confirmPassword) {
       return res.status(400).json({
@@ -130,21 +130,28 @@ exports.signup = async (req, res) => {
       to: email,
       subject: "Email Verification",
       html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px;">
-          <h2>Hello ${firstName},</h2>
-          <p>Thank you for signing up! To verify your email, click the button below:</p>
-          <a href="${process.env.LOCAL_URL}/api/v1/user/verify-email?token=${newUser._id}" 
-             style="background-color: #4CAF50; color: white; padding: 15px 20px; 
-                    text-align: center; text-decoration: none; display: inline-block; 
-                    border-radius: 5px; font-size: 16px;">
-             Verify Email
-          </a>
-          <p>If the button does not work, you can copy and paste the following link into your browser:</p>
-          <p><a href="${process.env.LOCAL_URL}/api/v1/user/verify-email?token=${newUser._id}">${process.env.LOCAL_URL}/api/v1/user/verify-email?token=${newUser._id}</a></p>
-          <p>Thank you!</p>
-        </div>
-      `,
-    };
+          <div style="font-family: Arial, sans-serif; padding: 20px;">
+            <h2>Hello ${firstName},</h2>
+            <p>Thank you for signing up! To verify your email, click the button below:</p>
+            <a href="${process.env.LOCAL_URL}/api/v1/user/verify-email?token=${newUser._id}" 
+               style="background-color: #4CAF50; color: white; padding: 15px 20px; 
+                      text-align: center; text-decoration: none; display: inline-block; 
+                      border-radius: 5px; font-size: 16px;">
+               Verify Email
+            </a>
+            <p>If the button does not work, you can copy and paste the following link into your browser:</p>
+            <p>
+              <a href="${process.env.LOCAL_URL}/api/v1/user/verify-email?token=${newUser._id}" 
+                 style="color: #0785eb !important; text-decoration: none;">
+                 ${process.env.LOCAL_URL}/api/v1/user/verify-email?token=${newUser._id}
+              </a>
+            </p>
+            <p>Thank you!</p>
+          </div>
+        `,
+  };
+  
+  
 
     const emailSent = await sendEmail(mailOptions);
     if (!emailSent) {
