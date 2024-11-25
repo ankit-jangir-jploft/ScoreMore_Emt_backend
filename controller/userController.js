@@ -72,7 +72,7 @@ exports.signup = async (req, res) => {
         success: false,
       });
     }
-
+    
     // Check if passwords match
     if (password !== confirmPassword) {
       return res.status(400).json({

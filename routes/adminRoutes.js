@@ -1,9 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require("../controller/adminController");
-const { upload } = require('../middleware/multer');
-
-
+const { uploadProfilePicture } = require('../middleware/multer');
 
 
 
@@ -15,7 +13,7 @@ router.post("/userList", adminController.getAllUsers);
 
 router.patch("/deactivateUser/:id", adminController.deactivateUser);
 router.patch("/unblockUser/:id", adminController.unblockUser);
-router.patch('/editProfile/:id', upload, adminController.editProfile);
+router.patch('/editProfile/:id', uploadProfilePicture, adminController.editProfile);
 router.delete('/deleteUser/:id', adminController.deleteUser);
 
 // export excel route

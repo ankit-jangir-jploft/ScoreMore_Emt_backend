@@ -1,6 +1,22 @@
 const multer = require('multer');
 const path = require('path');
 
+
+const csvStorage = multer.memoryStorage(); 
+
+const uploadCSV = multer({
+  storage: csvStorage,
+  fileFilter: (req, file, cb) => {
+    const allowedMimeTypes = ['text/csv', 'application/json'];
+    if (allowedMimeTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only CSV and JSON are allowed.'));
+    }
+  },
+}).single('file');
+
+
 // Set up multer for file upload
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -16,5 +32,11 @@ const storage = multer.diskStorage({
   }
 });
 
-// Export the upload middleware
-module.exports.upload = multer({ storage }).single('profilePicture');
+
+const uploadProfilePicture = multer({ storage }).single('profilePicture');
+
+// Export both middlewares
+module.exports = {
+  uploadProfilePicture,
+  uploadCSV,
+};

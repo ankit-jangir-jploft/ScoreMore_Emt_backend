@@ -625,17 +625,17 @@ exports.getAllFlashCardDataInLevel = async (req, res) => {
         const decoded = jwt.verify(token, process.env.SECRET_KEY);
         const userId = decoded.userId;
 
-        const { level, subject } = req.body;
+        const { level, subject, cardsLength } = req.body;
 
-        // Find flashcards based on level and subject
+        // Find all flashcards for the given level and subject
         const findFlashcardInLevel = await Flashcard.find({ level, subject });
         console.log("findFlashcardInLevel", findFlashcardInLevel);
 
-        // Find submitted flashcards by the user
+        // Find all flashcards submitted by the user
         const getUserSubmittedFlashcard = await UserFlashcard.find({ userId, subject, level });
         console.log("getUserSubmittedFlashcard", getUserSubmittedFlashcard);
 
-        // Check if any flashcards were found
+        // Check if any flashcards were found for the level and subject
         if (findFlashcardInLevel.length === 0) {
             return res.status(404).json({ message: 'No flashcards found for this level and subject.' });
         }
@@ -643,13 +643,41 @@ exports.getAllFlashCardDataInLevel = async (req, res) => {
         // Create a set of submitted flashcard IDs for quick lookup
         const submittedFlashcardIds = new Set(getUserSubmittedFlashcard.map(f => f.flashcardId.toString()));
 
+        // Separate unused and used flashcards
+        const unusedFlashcards = findFlashcardInLevel.filter(
+            flashcard => !submittedFlashcardIds.has(flashcard._id.toString())
+        );
+
+        const usedFlashcards = findFlashcardInLevel.filter(
+            flashcard => submittedFlashcardIds.has(flashcard._id.toString())
+        );
+
+        console.log("unusedFlashcards", unusedFlashcards);
+        console.log("usedFlashcards", usedFlashcards);
+
+        // Start with unused flashcards
+        let finalFlashcards = unusedFlashcards.slice(0, cardsLength);
+
+        // If more flashcards are needed, add random ones from the remaining pool
+        if (finalFlashcards.length < cardsLength) {
+            const remainingNeeded = cardsLength - finalFlashcards.length;
+
+            // Shuffle usedFlashcards to get random entries
+            const shuffledUsedFlashcards = usedFlashcards.sort(() => Math.random() - 0.5);
+
+            // Add required number of used flashcards to fill up to cardsLength
+            finalFlashcards = finalFlashcards.concat(shuffledUsedFlashcards.slice(0, remainingNeeded));
+        }
+
+        console.log("finalFlashcards", finalFlashcards);
+
         // Create the response data
         const responseData = {
             level: level,
-            noOfFlashcard: findFlashcardInLevel.length,
-            flashcards: findFlashcardInLevel.map(flashcard => ({
+            noOfFlashcard: finalFlashcards.length,
+            flashcards: finalFlashcards.map(flashcard => ({
                 ...flashcard._doc, // Spread the flashcard data
-                isRead: submittedFlashcardIds.has(flashcard._id.toString()) // Check if flashcard has been submitted
+                isRead: submittedFlashcardIds.has(flashcard._id.toString()) // Check if the flashcard has been submitted
             }))
         };
 
@@ -666,6 +694,8 @@ exports.getAllFlashCardDataInLevel = async (req, res) => {
         return res.status(500).json({ message: "Internal server error", success: false });
     }
 };
+
+
 
 exports.submitFlashcard = async (req, res) => {
     const { userId, flashcardId } = req.body;

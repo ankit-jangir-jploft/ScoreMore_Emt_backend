@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { upload } = require("../middleware/multer"); // Using multer middleware
+const { uploadProfilePicture } = require("../middleware/multer"); // Using multer middleware
 const flashcardController = require("../controller/flashcardController");
 
 // Add Flashcard Route with Multer Middleware
-router.post("/addFlashcard", upload, flashcardController.addFlashcard);
-router.put("/updateFlashcard/:id", upload, flashcardController.updateFlashcard);
+router.post("/addFlashcard", uploadProfilePicture, flashcardController.addFlashcard);
+router.put("/updateFlashcard/:id", uploadProfilePicture, flashcardController.updateFlashcard);
 router.delete("/deleteFlashcard/:id", flashcardController.deleteFlashcard);
 router.get("/getAllFlashcards", flashcardController.getAllFlashcards)
 router.get("/getFlashcardById/:id", flashcardController.getFlashcardById);
