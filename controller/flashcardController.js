@@ -499,8 +499,8 @@ exports.getAllRoadmaps = async (req, res) => {
         const decoded = jwt.verify(token, process.env.SECRET_KEY);
         const userId = decoded.userId;
 
-        // Get all flashcards, distinct subjects sorted by creation date
-        const allFlashcards = await Flashcard.find().sort({ createdAt: 1 }).distinct('subject');
+        // Get all flashcards, distinct subjects
+        const allFlashcards = await Flashcard.find().distinct('subject');
         if (allFlashcards.length === 0) {
             return res.status(404).json({
                 success: false,
@@ -508,11 +508,15 @@ exports.getAllRoadmaps = async (req, res) => {
             });
         }
 
+        // Define custom subject order
+        const customOrder = ["medical", "airway", "cardiology", "trauma", "EMS Operations"];
+        const orderedSubjects = customOrder.filter(subject => allFlashcards.includes(subject));
+
         // Get all user submissions
         const userFlashcardSubmissions = await UserFlashcard.find({ userId });
 
-        // Map through all subjects and gather roadmap data for each
-        let subjectRoadmaps = await Promise.all(allFlashcards.map(async (subject) => {
+        // Map through ordered subjects and gather roadmap data for each
+        let subjectRoadmaps = await Promise.all(orderedSubjects.map(async (subject) => {
             const flashcardsForSubject = await Flashcard.find({ subject });
             const totalFlashcardsForSubject = flashcardsForSubject.length;
 
@@ -610,6 +614,7 @@ exports.getAllRoadmaps = async (req, res) => {
         });
     }
 };
+
 
 
 exports.getAllFlashCardDataInLevel = async (req, res) => {

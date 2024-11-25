@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { uploadProfilePicture } = require("../middleware/multer"); // Using multer middleware
+const { uploadProfilePicture } = require("../middleware/multer"); 
 const flashcardController = require("../controller/flashcardController");
 
 // Add Flashcard Route with Multer Middleware
