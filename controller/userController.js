@@ -2,6 +2,8 @@
 const Question = require("../models/question");
 const bcrypt = require("bcrypt");
 require("dotenv").config();
+
+const sgMail = require('@sendgrid/mail');
 const jwt = require("jsonwebtoken");
 const nodeMailer = require("nodemailer");
 const crypto = require("crypto");
@@ -560,9 +562,6 @@ exports.socialLogin = async (req, res) => {
 
 
 
-//forgot password
-
-
 exports.forgotPassword = async (req, res) => {
   try {
     const { email, alternateEmail } = req.body;
@@ -966,6 +965,7 @@ exports.myProfile = async (req, res) => {
     });
   }
 };
+
 
 
 exports.editProfile = async (req, res) => {
@@ -1843,7 +1843,7 @@ exports.userDailyStreak = async (req, res) => {
       // If no strike record exists, create one
       userStrike = new UserStrike({
         userId,
-        strikeCount: 1,
+        strikeCount: 0,
         lastSubmissionTime: lastTestTime,
         lastStrikeUpdateTime: currentTime,
       });
@@ -2276,29 +2276,27 @@ exports.deleteReminder = async (req, res) => {
 
 async function sendEmail(mailOptions) {
   try {
-    let transporter = nodeMailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
-      auth: {
-        user: process.env.MAIL_ID, // Ensure this is set correctly
-        pass: process.env.PASS, // Ensure this is set correctly
-      },
-      tls: {
-        rejectUnauthorized: false, // Allow self-signed certificates
-      },
-    });
-    console.log("yrnsporter", transporter)
+    // Set SendGrid API key
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log("mail info", info.response);
+    
+    const msg = {
+      to: mailOptions.to,       // Recipient email address
+      from: process.env.MAIL_ID, // Verified sender email address in SendGrid
+      subject: mailOptions.subject, // Subject of the email
+      text: mailOptions.text,    // Plain text content (optional)
+      html: mailOptions.html,    // HTML content (optional)
+    };
+
+    // Send the email using SendGrid
+    const response = await sgMail.send(msg);
+    console.log("Email sent successfully:", response);
     return true;
   } catch (error) {
-    console.log("errorin send mail", error);
+    console.error("Error sending email:", error.response?.body || error.message);
     return false;
   }
 }
-
 
 
 exports.logout = async (req, res) => {

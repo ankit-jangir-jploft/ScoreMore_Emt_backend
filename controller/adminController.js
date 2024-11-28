@@ -147,6 +147,8 @@ exports.getDashboardData = async (req, res) => {
         // Count active users based on isActive status and date range
         const totalActiveUsers = await User.countDocuments({
             isActive: isActive,
+            isBlocked : false,
+            role : "user",
             createdAt: { $gte: startsDate, $lte: endsDate }
         });
 
@@ -240,7 +242,17 @@ exports.getDashboardData = async (req, res) => {
 // Updated getAllUsers function
 exports.getAllUsers = async (req, res) => {
     try {
-        const { page = 1, limit = 10, startsDate, endsDate, isActive, isBlocked, subscriptionStatus } = req.query;
+        const { 
+            page = 1, 
+            limit = 10, 
+            startsDate, 
+            endsDate, 
+            isActive, 
+            isBlocked, 
+            subscriptionStatus, 
+            search 
+        } = req.query;
+
         const skip = (page - 1) * limit;
 
         // Build the query object for filtering
@@ -263,6 +275,15 @@ exports.getAllUsers = async (req, res) => {
         }
         if (subscriptionStatus) {
             query.subscriptionStatus = subscriptionStatus;
+        }
+
+        // Search functionality
+        if (search) {
+            query.$or = [
+                { firstName: { $regex: search, $options: "i" } }, // Case-insensitive search in first name
+                { lastName: { $regex: search, $options: "i" } },  // Case-insensitive search in last name
+                { email: { $regex: search, $options: "i" } }      // Case-insensitive search in email
+            ];
         }
 
         // Fetch users with pagination, filtering, and sorting

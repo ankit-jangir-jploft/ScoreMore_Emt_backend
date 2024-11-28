@@ -1,38 +1,29 @@
-const { google } = require('googleapis');
-const nodemailer = require('nodemailer');
-require('dotenv').config()
-const { GOOGLE_CLIENT, GOOGLE_SECRET, MAIL_ID } = process.env
+const sgMail = require('@sendgrid/mail');
+require('dotenv').config();
 
-const oauth2Client = new google.auth.OAuth2(
-  GOOGLE_CLIENT,        
-  GOOGLE_SECRET,    
-  'http://v4.checkprojectstatus.com:3333//oauth2callback' 
-);
+const { SENDGRID_API_KEY, MAIL_ID } = process.env;
 
+// Set the SendGrid API Key
+sgMail.setApiKey(SENDGRID_API_KEY);
 
 module.exports.sendMail = async (mailOptions) => {
-    try {
-      // Refresh the access token if needed
-      const accessToken = await oauth2Client.getAccessToken();
-  
-      // Create a Nodemailer transporter using OAuth2
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          type: 'OAuth2',
-          user: MAIL_ID, // Your Gmail address
-          clientId: GOOGLE_CLIENT,
-          clientSecret: GOOGLE_SECRET,
-          refreshToken: oauth2Client.credentials.refresh_token, // Refresh token
-          accessToken: accessToken.token, // Access token
-        },
-      });
-  
-      const result = await transporter.sendMail(mailOptions);
-      console.log('Email sent:', result);
-      return true;
-    } catch (error) {
-      console.log(error)
-      return false
-    }
-  };
+  console.log("MAIL_ID",MAIL_ID, SENDGRID_API_KEY)
+  try {
+    // Construct the email message
+    const msg = {
+      to: mailOptions.to, // Recipient email address
+      from: MAIL_ID,      // Verified sender email address in SendGrid
+      subject: mailOptions.subject, // Email subject
+      text: mailOptions.text, // Plain text content (optional)
+      html: mailOptions.html, // HTML content
+    };
+
+    // Send the email using SendGrid
+    const result = await sgMail.send(msg);
+    console.log('Email sent:', result);
+    return true;
+  } catch (error) {
+    console.error('Error sending email11:', error.response?.body || error.message);
+    return false;
+  }
+};

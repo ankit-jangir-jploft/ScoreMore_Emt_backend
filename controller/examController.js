@@ -92,9 +92,7 @@ exports.examRecord = async (req, res) => {
 };
 
  // Adjust the path to your model if needed
-
- 
- exports.todayDailyChallangeStatus = async (req, res) => {
+exports.todayDailyChallangeStatus = async (req, res) => {
    try {
      const token = req.headers.authorization?.split(' ')[1];
      if (!token) {
@@ -189,9 +187,6 @@ exports.examRecord = async (req, res) => {
    }
  };
  
- 
-
-
 exports.getPerOptionPercentage = async (req, res) => {
     try {
         const { questionId } = req.body;
