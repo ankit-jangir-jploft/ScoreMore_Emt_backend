@@ -2321,3 +2321,199 @@ exports.logout = async (req, res) => {
     });
   }
 };
+
+
+
+// socialLogin = async (req, res) => {
+//   try {
+//     const {
+//       email,
+//       socialId,
+//       firstName,
+//       lastName,
+//       registrationType,
+//       deviceToken,
+//     } = req.body;
+
+//     if (registrationType == "apple") {
+//       let user = await User.findOne({ socialId });
+//       // user blocked
+
+
+
+
+
+
+
+
+
+
+
+
+//       if (user?.isBlocked) {
+//         return res.status(201).json({ status: 201, message: "User Blocked" });
+//       } else if (user?.isDeleted) {
+//         return res.status(201).json({
+//           status: 201,
+//           message: "Your registration is incomplete please update profile",
+//           LastStep: "1",
+//           data: user,
+//         });
+//       } else {
+//         if (user) {
+//           // generate token
+//           if (user.CompleteSteps == "23") {
+//             let user = await User.findOneAndUpdate(
+//               { socialId },
+//               { deviceToken: deviceToken },
+//               { new: true }
+//             );
+
+//             const token = generateToken(user._id, {
+//               name: user.firstName,
+//               _id: user._id,
+//               email: user.email,
+//               role: user.role,
+//             });
+//             console.log("useruseruser", token);
+
+//             return res.status(200).json({
+//               status: 200,
+//               message: "Login Successfully",
+//               data: user,
+//               token: token,
+//               LastStep: user.CompleteSteps,
+//             });
+//           } else {
+//             console.log("ooooooooooooooooooooooooooooooo");
+//             return res.status(201).json({
+//               status: 201,
+//               message:
+//                 "Your registration is incomplete please update profile",
+//               LastStep: user.CompleteSteps,
+//               data: user,
+//             });
+//           }
+//         }
+//         // not found
+//         if (!user) {
+//           let user = await User.findOneAndUpdate(
+//             { email, socialId },
+//             { deviceToken: deviceToken },
+//             { new: true }
+//           );
+
+//           let updateuser = new User({
+//             email,
+//             socialId,
+//             firstName,
+//             lastName,
+//             registrationType,
+//             LastStep: "0",
+//           });
+
+//           // Save new user
+//           await updateuser.save();
+
+//           const token = generateToken(updateuser._id, {
+//             name: updateuser.firstName,
+//             _id: updateuser._id,
+//             email: updateuser.email,
+//             role: updateuser.role,
+//           });
+
+//           return res.status(200).json({
+//             status: 200,
+//             message: "",
+//             data: updateuser,
+//             token: token,
+//             CompleteSteps: "0",
+//           });
+//         }
+//       }
+//     } else {
+
+//       let user = await User.findOne({ email, socialId, isDeleted: false });
+//       // user blocked
+//       console.log("sgggggggggggggggggggggggg", user);
+
+//       if (user?.isBlocked) {
+//         return res.status(201).json({ status: 201, message: "User Blocked" });
+//       }
+//       if (user) {
+//         console.log("sssssssssssssssssssssssaaaaaaaaaaaaaaaaaaaaaaaaa", user);
+
+//         // generate token
+//         if (user.CompleteSteps == "23") {
+//           let user = await User.findOneAndUpdate(
+//             { email, socialId },
+//             { deviceToken: deviceToken },
+//             { new: true }
+//           );
+//           console.log("qqqqqqqqqqqqqqqqqqqqqqqqqqqqq", user);
+
+//           const token = generateToken(user._id, {
+//             name: user.firstName,
+//             _id: user._id,
+//             email: user.email,
+//             role: user.role,
+//           });
+//           console.log("tokentokentokentoken", token, user.CompleteSteps);
+//           return res.status(200).json({
+//             status: 200,
+//             message: "Login Successfully",
+//             data: user,
+//             token: token,
+//             LastStep: user.CompleteSteps,
+//           });
+//         } else {
+//           console.log("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz", user);
+
+//           return res.status(201).json({
+//             status: 201,
+//             message: "Your registration is incomplete please update profile",
+//             LastStep: user.CompleteSteps,
+//             data: user,
+//           });
+//         }
+//       }
+//       // not found
+//       if (!user) {
+//         let user = await User.findOneAndUpdate(
+//           { email, socialId },
+//           { deviceToken: deviceToken },
+//           { new: true }
+//         );
+
+//         let updateuser = new User({
+//           email,
+//           socialId,
+//           firstName,
+//           lastName,
+//           registrationType,
+//           LastStep: "0",
+//         });
+
+//         // Save new user
+//         await updateuser.save();
+
+//         const token = generateToken(updateuser._id, {
+//           name: updateuser.firstName,
+//           _id: updateuser._id,
+//           email: updateuser.email,
+//           role: updateuser.role,
+//         });
+
+//         return res.status(200).json({
+//           status: 200,
+//           message: "",
+//           data: updateuser,
+//           token: token,
+//           CompleteSteps: "0",
+//         });
+//       }
+//     }
+//   } catch (error) {
+//     return buildResult(res, 201, {}, {}, error);
+//   }
+// };

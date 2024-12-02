@@ -1,5 +1,5 @@
 const path = require('path');
-const { UserQuestionData } = require("../models/User");
+const { UserQuestionData, Feedback, User } = require("../models/User");
 // const questionsData = require(path.join(__dirname, '../question/question.json'));
 
 const Question = require('../models/question');
@@ -646,6 +646,64 @@ exports.addQuestionFromCsv = async (req, res) => {
   }
 };
 
+exports.submitQuestionFeedback = async (req, res) => {
+  console.log("req.bodysss", req.body);
+
+  const { userId, questionId, feedbackText } = req.body.req;
+
+  // Check if all required fields are provided
+  if (!userId || !questionId || !feedbackText) {
+    return res.status(400).json({ message: 'All fields are required' });
+  }
+
+  try {
+    // Retrieve the user from the database to get their email, full name, and userType
+    console.log("rhitss");
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Retrieve the question from the database to get its details
+    console.log("rhitssaa");
+    const question = await Question.findById(questionId);
+    if (!question) {
+      return res.status(404).json({ message: 'Question not found' });
+    }
+
+    console.log("question", question)
+
+    // Create a new feedback document with additional user and question information
+    const newFeedback = new Feedback({
+      userId,
+      questionId,
+      feedbackText,
+      email: user.email, 
+      fullName: user.firstName ? user.firstName + " " + user.lastName : "",  
+      userType: user.isGuest ? "guest" : user.role,  
+      questionText: question.question,  // Save question text
+      subject: question.subject,  // Save subject
+      level: question.level,  // Save level
+      explanation: question.explanation,  // Save explanation
+      
+    });
+
+    console.log("newFeed0", newFeedback);
+
+    // Save the feedback document
+    await newFeedback.save();
+
+    // Send a success response
+    res.status(200).json({
+      success: true,
+      message: 'Feedback submitted successfully',
+      newFeedback,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error, please try again later' });
+  }
+};
 
 
 exports.getAllQuestions = async (req, res) => {
