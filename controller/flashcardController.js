@@ -177,12 +177,12 @@ exports.deleteFlashcard = async (req, res) => {
         console.log("count in level", count);
 
         // Check if there's more than one flashcard for the same subject and level
-        if (count <= 1) {
-            return res.status(400).json({
-                message: `There is only one flashcard in subject "${subject}" and level ${level}. You cannot delete the last flashcard from this level.`,
-                success: false
-            });
-        }
+        // if (count <= 1) {
+        //     return res.status(400).json({
+        //         message: `There is only one flashcard in subject "${subject}" and level ${level}. You cannot delete the last flashcard from this level.`,
+        //         success: false
+        //     });
+        // }
 
         // Proceed to delete the flashcard
         await Flashcard.findByIdAndDelete(id);
@@ -271,12 +271,105 @@ exports.getFlashcardById = async (req, res) => {
 
 // apis for flashcards yo
 
+// exports.getRoadmapSubject = async (req, res) => {
+//     try {
+//         // Extract and verify token
+//         const token = req.headers.authorization?.split(" ")[1];
+//         console.log("Token in myProfile:", token);
+
+//         if (!token) {
+//             return res.status(401).json({
+//                 message: "No token provided!",
+//                 success: false,
+//             });
+//         }
+
+//         const decoded = jwt.verify(token, process.env.SECRET_KEY);
+//         const userId = decoded.userId;
+//         console.log("Decoded User ID:", userId);
+
+//         // Get all flashcards, distinct subjects sorted by creation date
+//         const allFlashcards = await Flashcard.find().sort({ createdAt: 1 }).distinct('subject');
+//         console.log("All Flashcard Subjects:", allFlashcards);
+
+//         if (allFlashcards.length === 0) {
+//             return res.status(404).json({
+//                 success: false,
+//                 message: "No FlashCards found",
+//             });
+//         }
+
+//         // Get all user submissions
+//         const userFlashcardSubmissions = await UserFlashcard.find({ userId });
+//         console.log("User Flashcard Submissions:", userFlashcardSubmissions);
+
+//         let subjectStatus = await Promise.all(allFlashcards.map(async (subject) => {
+//             const flashcardsForSubject = await Flashcard.find({ subject });
+//             const totalFlashcardsForSubject = flashcardsForSubject.length;
+
+//             // Get user submissions for the current subject
+//             const userSubmissionsForSubject = userFlashcardSubmissions.filter(submission => submission.subject === subject);
+//             const totalUserSubmissions = userSubmissionsForSubject.length;
+
+//             // Determine completion and unlock status
+//             const isCompleted = totalUserSubmissions === totalFlashcardsForSubject && totalFlashcardsForSubject > 0;
+//             const isPending = totalUserSubmissions > 0 && totalUserSubmissions < totalFlashcardsForSubject;
+//             const isUnlocked = totalUserSubmissions > 0 || isCompleted || totalUserSubmissions < totalFlashcardsForSubject;
+
+//             return {
+//                 subject,
+//                 isUnlocked,
+//                 isCompleted,
+//                 totalFlashcards: totalFlashcardsForSubject,
+//                 submittedFlashcards: totalUserSubmissions,
+//             };
+//         }));
+
+//         // Define the custom order of subjects
+//         const customOrder = ['medical', 'airway', 'cardiology', 'trauma', 'EMS Operations'];
+
+//         // Sort subjectStatus based on the customOrder array
+//         subjectStatus.sort((a, b) => customOrder.indexOf(a.subject) - customOrder.indexOf(b.subject));
+
+//         // Order subjects: Completed first, then the current subject
+//         const completedSubjects = subjectStatus.filter(subject => subject.isCompleted);
+//         const pendingSubjects = subjectStatus.filter(subject => subject.isPending);
+//         const incompleteSubjects = subjectStatus.filter(subject => !subject.isCompleted && !subject.isPending);
+
+//         let currentSubject = null;
+//         if (pendingSubjects.length > 0) {
+//             currentSubject = pendingSubjects[0].subject;
+//         } else if (incompleteSubjects.length > 0) {
+//             currentSubject = incompleteSubjects[0].subject;
+//         }
+
+//         // Sort by completed first, then pending or incomplete
+//         const orderedSubjects = [
+//             ...completedSubjects,
+//             ...pendingSubjects,
+//             ...incompleteSubjects,
+//         ];
+
+//         // Send response
+//         res.status(200).json({
+//             success: true,
+//             message: "Roadmap status found successfully!",
+//             data: {
+//                 subjects: orderedSubjects,
+//                 currentSubject: currentSubject
+//             },
+//         });
+
+//     } catch (err) {
+//         console.error("Error retrieving roadmap status:", err);
+//         return res.status(500).json({ message: "Internal server error", success: false });
+//     }
+// };
+
 exports.getRoadmapSubject = async (req, res) => {
     try {
         // Extract and verify token
         const token = req.headers.authorization?.split(" ")[1];
-        console.log("Token in myProfile:", token);
-
         if (!token) {
             return res.status(401).json({
                 message: "No token provided!",
@@ -286,12 +379,9 @@ exports.getRoadmapSubject = async (req, res) => {
 
         const decoded = jwt.verify(token, process.env.SECRET_KEY);
         const userId = decoded.userId;
-        console.log("Decoded User ID:", userId);
 
-        // Get all flashcards, distinct subjects sorted by creation date
-        const allFlashcards = await Flashcard.find().sort({ createdAt: 1 }).distinct('subject');
-        console.log("All Flashcard Subjects:", allFlashcards);
-
+        // Get all flashcards, distinct subjects
+        const allFlashcards = await Flashcard.find().distinct('subject');
         if (allFlashcards.length === 0) {
             return res.status(404).json({
                 success: false,
@@ -301,70 +391,60 @@ exports.getRoadmapSubject = async (req, res) => {
 
         // Get all user submissions
         const userFlashcardSubmissions = await UserFlashcard.find({ userId });
-        console.log("User Flashcard Submissions:", userFlashcardSubmissions);
 
-        let subjectStatus = await Promise.all(allFlashcards.map(async (subject) => {
-            const flashcardsForSubject = await Flashcard.find({ subject });
-            const totalFlashcardsForSubject = flashcardsForSubject.length;
+        const subjectStatus = await Promise.all(
+            allFlashcards.map(async (subject) => {
+                const flashcardsForSubject = await Flashcard.find({ subject });
+                const totalFlashcardsForSubject = flashcardsForSubject.length;
 
-            // Get user submissions for the current subject
-            const userSubmissionsForSubject = userFlashcardSubmissions.filter(submission => submission.subject === subject);
-            const totalUserSubmissions = userSubmissionsForSubject.length;
+                // User submissions for the subject
+                const userSubmissionsForSubject = userFlashcardSubmissions.filter(
+                    (submission) => submission.subject === subject
+                );
+                const totalUserSubmissions = userSubmissionsForSubject.length;
 
-            // Determine completion and unlock status
-            const isCompleted = totalUserSubmissions === totalFlashcardsForSubject && totalFlashcardsForSubject > 0;
-            const isPending = totalUserSubmissions > 0 && totalUserSubmissions < totalFlashcardsForSubject;
-            const isUnlocked = totalUserSubmissions > 0 || isCompleted || totalUserSubmissions < totalFlashcardsForSubject;
+                // Determine completion and unlock status
+                const isCompleted =
+                    totalUserSubmissions === totalFlashcardsForSubject && totalFlashcardsForSubject > 0;
+                const isUnlocked =
+                    totalUserSubmissions > 0 || isCompleted || totalUserSubmissions < totalFlashcardsForSubject;
 
-            return {
-                subject,
-                isUnlocked,
-                isCompleted,
-                totalFlashcards: totalFlashcardsForSubject,
-                submittedFlashcards: totalUserSubmissions,
-            };
-        }));
+                return {
+                    subject,
+                    isUnlocked,
+                    isCompleted,
+                    totalFlashcards: totalFlashcardsForSubject,
+                    submittedFlashcards: totalUserSubmissions,
+                };
+            })
+        );
 
-        // Define the custom order of subjects
+        // Define custom order of subjects
         const customOrder = ['medical', 'airway', 'cardiology', 'trauma', 'EMS Operations'];
 
-        // Sort subjectStatus based on the customOrder array
+        // Sort the subjects based on the custom order
         subjectStatus.sort((a, b) => customOrder.indexOf(a.subject) - customOrder.indexOf(b.subject));
 
-        // Order subjects: Completed first, then the current subject
-        const completedSubjects = subjectStatus.filter(subject => subject.isCompleted);
-        const pendingSubjects = subjectStatus.filter(subject => subject.isPending);
-        const incompleteSubjects = subjectStatus.filter(subject => !subject.isCompleted && !subject.isPending);
+        // Determine the current subject
+        const currentSubject = subjectStatus.find(
+            (subject) => !subject.isCompleted
+        )?.subject || null;
 
-        let currentSubject = null;
-        if (pendingSubjects.length > 0) {
-            currentSubject = pendingSubjects[0].subject;
-        } else if (incompleteSubjects.length > 0) {
-            currentSubject = incompleteSubjects[0].subject;
-        }
-
-        // Sort by completed first, then pending or incomplete
-        const orderedSubjects = [
-            ...completedSubjects,
-            ...pendingSubjects,
-            ...incompleteSubjects,
-        ];
-
-        // Send response
+        // Send the ordered response
         res.status(200).json({
             success: true,
             message: "Roadmap status found successfully!",
             data: {
-                subjects: orderedSubjects,
-                currentSubject: currentSubject
+                subjects: subjectStatus,
+                currentSubject,
             },
         });
-
     } catch (err) {
         console.error("Error retrieving roadmap status:", err);
         return res.status(500).json({ message: "Internal server error", success: false });
     }
 };
+
 
 
 exports.getRoadmap = async (req, res) => {
@@ -680,6 +760,8 @@ exports.getAllFlashCardDataInLevel = async (req, res) => {
         const responseData = {
             level: level,
             noOfFlashcard: finalFlashcards.length,
+            totalFlashCards: findFlashcardInLevel.length,
+            submittedFlashcards : getUserSubmittedFlashcard.length,
             flashcards: finalFlashcards.map(flashcard => ({
                 ...flashcard._doc, // Spread the flashcard data
                 isRead: submittedFlashcardIds.has(flashcard._id.toString()) // Check if the flashcard has been submitted
@@ -712,6 +794,22 @@ exports.submitFlashcard = async (req, res) => {
             return res.status(404).json({ message: "Flashcard not found", success: false });
         }
 
+        // Ensure there isn't an entry exceeding total flashcards
+        const totalFlashcards = await Flashcard.countDocuments({ subject: flashCard.subject, level: flashCard.level });
+
+        const userFlashcardsCount = await UserFlashcard.countDocuments({
+            userId,
+            subject: flashCard.subject,
+            level: flashCard.level
+        });
+
+        // if (userFlashcardsCount >= totalFlashcards) {
+        //     return res.status(400).json({
+        //         message: `All flashcards for this subject and level are already submitted.`,
+        //         success: false
+        //     });
+        // }
+
         // Check if the user has already submitted this flashcard
         let userFlashcard = await UserFlashcard.findOne({ userId, flashcardId });
 
@@ -736,20 +834,20 @@ exports.submitFlashcard = async (req, res) => {
         }
 
         // Check if all flashcards in the same level are read
-        const allReadInLevel = await UserFlashcard.find({
+        const unreadFlashcards = await UserFlashcard.find({
             userId,
             subject: userFlashcard.subject,
             level: userFlashcard.level,
             isRead: false
         });
 
-        console.log("Unread flashcards in level:", allReadInLevel);
+        console.log("Unread flashcards in level:", unreadFlashcards);
 
-        if (allReadInLevel.length === 0) {
+        if (unreadFlashcards.length === 0) {
             // Unlock the next level if all flashcards in the current level are read
             const nextLevel = userFlashcard.level + 1;
             console.log(`All flashcards read. Unlock next level: ${nextLevel}`);
-            // You can implement the unlock logic here if necessary
+            // Implement the unlock logic here if necessary
         }
 
         // Check if all levels in the subject are completed (optional logic)
@@ -762,7 +860,7 @@ exports.submitFlashcard = async (req, res) => {
         const totalLevels = 10; // Assuming 10 levels per subject, adjust as needed
         if (completedLevels.length === totalLevels) {
             console.log("All levels completed for this subject.");
-            // You can implement logic for unlocking the next subject here
+            // Implement logic for unlocking the next subject here
         }
 
         return res.status(200).json({
@@ -775,6 +873,7 @@ exports.submitFlashcard = async (req, res) => {
         return res.status(500).json({ message: "Internal server error", success: false });
     }
 };
+
 
 exports.getUserSubmitFlashcard = async (req, res) => {
     try {

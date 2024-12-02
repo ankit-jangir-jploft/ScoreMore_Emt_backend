@@ -44,4 +44,10 @@ router.delete("/deleteReview/:id", adminController.deletereview);
 router.get("/getAllContactUsEnquiries", adminController.getAllContactUs);
 router.delete("/deleteContactUsEnquiry/:id", adminController.deleteContact);
 
+
+// feedback
+
+router.get('/feedbacks', adminController.getAllFeedback);
+router.delete('/feedback/:feedbackId', adminController.deleteFeedback);
+
 module.exports = router;

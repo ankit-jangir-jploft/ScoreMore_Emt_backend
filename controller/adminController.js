@@ -1,5 +1,5 @@
 const Flashcard = require("../models/Flashcard");
-const { User, Subscription, UserRating } = require("../models/User");
+const { User, Subscription, UserRating, Feedback } = require("../models/User");
 const ContactUs = require("../models/Contact")
 const Question = require("../models/question");
 const TestResult = require('../models/TestResult');
@@ -872,6 +872,80 @@ exports.deleteContact = async (req, res) => {
         return res.status(500).json({ success: false, message: 'Server error' });
     }
 };
+
+
+// question feedback
+
+exports.getAllFeedback = async (req, res) => {
+    const { page = 1, limit = 10, searchTerm = '' } = req.query; // Retrieve pagination and search parameters
+
+    try {
+        // Convert page and limit to integers
+        const pageNumber = parseInt(page);
+        const pageLimit = parseInt(limit);
+
+        // Build the query filter for searchTerm (optional)
+        const searchFilter = searchTerm ? {
+            feedbackText: { $regex: searchTerm, $options: 'i' } // Case-insensitive search on feedback text
+        } : {};
+
+        // Fetch the feedbacks with pagination and search filter
+        const feedback = await Feedback.find(searchFilter)
+            .sort({ createdAt: -1 }) // Sort by createdAt descending
+            .skip((pageNumber - 1) * pageLimit) // Skip the number of records for pagination
+            .limit(pageLimit); // Limit the number of records
+
+        // Count total feedbacks to calculate pagination info
+        const totalFeedbacks = await Feedback.countDocuments(searchFilter);
+
+        if (!feedback || feedback.length === 0) {
+            return res.status(404).json({ message: 'No feedback found' });
+        }
+
+        // Return success response with the feedback and pagination data
+        res.status(200).json({
+            success: true,
+            feedbacks: feedback,
+            pagination: {
+                currentPage: pageNumber,
+                totalPages: Math.ceil(totalFeedbacks / pageLimit),
+                totalFeedbacks,
+            },
+        });
+    } catch (error) {
+        console.error("Error retrieving feedback:", error);
+        res.status(500).json({ message: 'Server error, please try again later' });
+    }
+};
+
+  // feedbackController.js
+
+// Delete feedback by ID
+exports.deleteFeedback = async (req, res) => {
+    const { feedbackId } = req.params;
+  
+    // Validate that the feedbackId is provided
+    if (!feedbackId) {
+      return res.status(400).json({ message: 'Feedback ID is required' });
+    }
+  
+    try {
+      // Find and delete the feedback by feedbackId
+      const feedback = await Feedback.findByIdAndDelete(feedbackId);
+  
+      // If no feedback is found
+      if (!feedback) {
+        return res.status(404).json({ message: 'Feedback not found' });
+      }
+  
+      // Return success response
+      res.status(200).json({ success: true, message: 'Feedback deleted successfully' });
+    } catch (error) {
+      console.error("Error deleting feedback: ", error);
+      res.status(500).json({ message: 'Server error, please try again later' });
+    }
+  };
+  
   
 
 

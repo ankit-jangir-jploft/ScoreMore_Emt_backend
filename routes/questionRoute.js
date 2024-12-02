@@ -13,6 +13,7 @@ router.post("/addQuestion", questionController.addQuestion);
 router.get("/getQuestion/:id", questionController.getQuestionById);
 
 router.post("/updatequestion/:id", questionController.updateQuestion)
+router.post("/submitFeedback", questionController.submitQuestionFeedback)
 router.post("/deleteQuestion/:id", questionController.deleteQuestion);
 
 router.post("/addQuestionCSV", uploadCSV, questionController.addQuestionFromCsv);

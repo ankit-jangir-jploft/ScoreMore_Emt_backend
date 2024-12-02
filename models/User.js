@@ -188,35 +188,89 @@ const userQuestionDataSchema = new mongoose.Schema(
 
 const userFlashcardSchema = new mongoose.Schema({
   userId: {
-    type: mongoose.Schema.Types.ObjectId, 
-      ref: 'User',
-      required: true
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   },
   flashcardId: {
-    type: mongoose.Schema.Types.ObjectId, 
-      ref: 'Flashcard',
-      required: true
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Flashcard',
+    required: true
   },
   subject: {
-      type: String, // e.g., "medical"
-      required: true
+    type: String, // e.g., "medical"
+    required: true
   },
   level: {
-      type: Number, // e.g., 1 to 10
-      required: true
+    type: Number, // e.g., 1 to 10
+    required: true
   },
   isRead: {
-      type: Boolean,
-      default: false
+    type: Boolean,
+    default: false
   },
   lastReadAt: {
-      type: Date
+    type: Date
   },
   createdAt: {
-      type: Date,
-      default: Date.now
+    type: Date,
+    default: Date.now
   }
 });
+
+// Add unique index to ensure `userId` and `flashcardId` are unique together
+userFlashcardSchema.index({ userId: 1, flashcardId: 1 }, { unique: true });
+
+
+const feedbackSchema = new mongoose.Schema({
+  userId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    required: true, 
+    ref: 'User' 
+  },
+  questionId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    required: true, 
+    ref: 'Question' 
+  },
+  feedbackText: { 
+    type: String, 
+    required: true 
+  },
+  email: { 
+    type: String 
+  },
+  fullName: { 
+    type: String 
+  },
+  userType: { 
+    type: String, 
+    required: true 
+  },
+  questionText: { 
+    type: String, 
+    required: true 
+  },
+  subject: { 
+    type: String, 
+    required: true 
+  }, 
+  level: { 
+    type: String, 
+    required: true 
+  }, 
+  explanation: { 
+    type: String 
+  }, 
+  createdAt: { 
+    type: Date, 
+    default: Date.now 
+  },
+});
+
+module.exports = mongoose.model('Feedback', feedbackSchema);
+
+
 
 
 const ratingSchema = new mongoose.Schema({
@@ -228,12 +282,6 @@ const ratingSchema = new mongoose.Schema({
 
 
 
-
-
-
-
-
-
 // Exporting both models
 const User = mongoose.model("User", userSchema);
 const UserQuestionData = mongoose.model(
@@ -242,7 +290,8 @@ const UserQuestionData = mongoose.model(
 );
 
 const UserRating = mongoose.model('Rating', ratingSchema);
+const Feedback = mongoose.model('Feedback', feedbackSchema);
 const Subscription = mongoose.model('Subscription', SubscriptionSchema);
 const UserFlashcard = mongoose.model('UserFlashcard', userFlashcardSchema);
 
-module.exports = { User, UserQuestionData, Subscription, UserFlashcard, UserRating };
+module.exports = { User, UserQuestionData, Subscription, UserFlashcard, UserRating, Feedback };
