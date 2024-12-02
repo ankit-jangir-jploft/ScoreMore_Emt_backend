@@ -649,7 +649,7 @@ exports.addQuestionFromCsv = async (req, res) => {
 exports.submitQuestionFeedback = async (req, res) => {
   console.log("req.bodysss", req.body);
 
-  const { userId, questionId, feedbackText } = req.body.req;
+  const { userId, questionId, feedbackText } = req.body;
 
   // Check if all required fields are provided
   if (!userId || !questionId || !feedbackText) {
