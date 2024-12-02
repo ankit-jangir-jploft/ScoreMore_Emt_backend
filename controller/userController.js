@@ -1422,7 +1422,7 @@ exports.allExamRecord = async (req, res) => {
 
     // Find user questions
     const userQuestions = await UserQuestionData.find({ userId }).populate('questionId');
-    console.log("User Questions Found:", userQuestions);
+    // console.log("User Questions Found:", userQuestions);
 
     if (userQuestions.length === 0) {
       return res.status(404).json({
@@ -1597,6 +1597,7 @@ exports.getSubscriptionDetails = async (req, res) => {
       paymentAmount: subscription.paymentAmount,
       currency: subscription.currency,
       subscriptionPlan: subscription.subscriptionPlan,
+      priceId: subscription.priceId,
       startedAt: subscription.startedAt,
       expiresAt: subscription.expiresAt,
       remainingDays: remainingDays,
@@ -1637,10 +1638,10 @@ exports.getSubscriptionDetails = async (req, res) => {
 exports.getUserTransactionHistory = async (req, res) => {
   try {
     const { id } = req.params;
-    console.log("userid", id)// Get userId from request params
+    console.log("userid", id)
 
     // Find all subscriptions associated with the user
-    const transactions = await Subscription.find({ userId: id }).sort({ createdAt: -1 });
+    const transactions = await Subscription.find({ userId: id, subscriptionStatus : "active" }).sort({ createdAt: -1 });
     console.log("transactions", transactions)
 
     if (!transactions || transactions.length === 0) {
@@ -1657,7 +1658,7 @@ exports.getUserTransactionHistory = async (req, res) => {
       currency: transaction.currency,
       paymentMethod: transaction.paymentMethod,
       subscriptionPlan: transaction.subscriptionPlan,
-      planType: transaction.subscriptionPlan == "price_1QHNA1JpjKGzAGnrwEWMpjpi" ? "1 Month Plan" : transaction.subscriptionPlan == "price_1QFDhaJpjKGzAGnr7jSEIpaQ" ? "3 Month Plan" : transaction.subscriptionPlan == "price_1QDle3JpjKGzAGnrk747qdyG" ? "1 Year Plan" : "no plan",
+      planType:  transaction.subscriptionPlan  ? transaction.subscriptionPlan : "no plan",
       subscriptionStatus: transaction.subscriptionStatus,
       startedAt: transaction.startedAt.toISOString().slice(0, 10), // Format to 'yyyy-mm-dd'
       expiresAt: transaction.expiresAt ? transaction.expiresAt.toISOString().slice(0, 10) : null,

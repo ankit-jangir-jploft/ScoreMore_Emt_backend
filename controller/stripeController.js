@@ -12,9 +12,11 @@ exports.checkout = async (req, res) => {
         // Step 1: Fetch subscription details from your admin API
         const response = await axios.get(`${process.env.LOCAL_URL}/api/admin/getAllSubscriptions`);
         const subscriptions = response.data.subscriptions;
+        console.log("subscriptions", subscriptions)
 
         // Step 2: Find the subscription details based on the priceId
         const selectedSubscription = subscriptions.find(sub => sub.stripePriceId === priceId);
+        console.log("selectedSubscription", selectedSubscription)
 
         if (!selectedSubscription) {
             return res.status(400).json({
@@ -74,7 +76,8 @@ exports.checkout = async (req, res) => {
             currency: session.currency,
             subscriptionStatus: 'pending', // Start as pending until confirmed
             paymentMethod: 'card',
-            subscriptionPlan: priceId,
+            subscriptionPlan: selectedSubscription.title,
+            priceId : priceId,
             startedAt: new Date(),
             expiresAt: new Date(Date.now() + planDuration * 24 * 60 * 60 * 1000), // Set expiration date
         });
