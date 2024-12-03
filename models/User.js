@@ -33,10 +33,7 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: function () {
-        // Password is required only for non-guest users
-        return !this.isGuest;
-      },
+      
     },
     profilePicture: {
       type: String,
