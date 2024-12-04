@@ -16,8 +16,8 @@ exports.addFlashcard = async (req, res) => {
         });
 
         // Log incoming request details
-        console.log("Incoming Request Body (trimmed):", req.body); 
-        console.log("Uploaded File Details:", req.file); 
+        // console.log("Incoming Request Body (trimmed):", req.body); 
+        // console.log("Uploaded File Details:", req.file); 
 
         const { question, explanation, subject, level, hint, subtitle } = req.body;
 
@@ -31,18 +31,18 @@ exports.addFlashcard = async (req, res) => {
 
         // Convert level to an integer for comparison
         const newLevel = parseInt(level, 10);
-        console.log("Parsed Level:", newLevel); // Log the parsed level
+        // console.log("Parsed Level:", newLevel); // Log the parsed level
 
         // Check for existing flashcards with the same subject
         const existingFlashcards = await Flashcard.find({ subject });
-        console.log("Existing Flashcards Found:", existingFlashcards.length); // Log the number of existing flashcards
+        // console.log("Existing Flashcards Found:", existingFlashcards.length); // Log the number of existing flashcards
 
         if (existingFlashcards.length > 0) {
             const existingLevels = existingFlashcards.map(fc => fc.level).sort((a, b) => a - b);
             const maxLevel = parseInt(existingLevels[existingLevels.length - 1], 10); // Convert maxLevel to an integer
 
-            console.log("Existing Levels:", existingLevels); // Log existing levels
-            console.log("Max Existing Level:",typeof maxLevel); // Log max existing level
+            // console.log("Existing Levels:", existingLevels); // Log existing levels
+            // console.log("Max Existing Level:",typeof maxLevel); // Log max existing level
 
             // Check if the new level is valid
             if (newLevel > maxLevel + 1) {
@@ -71,7 +71,7 @@ exports.addFlashcard = async (req, res) => {
         if (req.file) {
             // Get just the filename (not the full path)
             profilePicture = path.basename(req.file.path);
-            console.log("Profile Picture Filename:", profilePicture); // Log the profile picture filename
+            // console.log("Profile Picture Filename:", profilePicture); // Log the profile picture filename
         } else {
             console.error("File Upload Error: Profile picture is required."); // Log the file error
             return res.status(400).json({
@@ -93,7 +93,7 @@ exports.addFlashcard = async (req, res) => {
 
         // Save the flashcard to the database
         const savedFlashcard = await flashcard.save();
-        console.log("Flashcard Saved Successfully:", savedFlashcard); // Log the saved flashcard data
+        // console.log("Flashcard Saved Successfully:", savedFlashcard); // Log the saved flashcard data
 
         return res.status(201).json({
             message: "Flashcard created successfully",
@@ -108,8 +108,8 @@ exports.addFlashcard = async (req, res) => {
 
 exports.updateFlashcard = async (req, res) => {
     try {
-        console.log("req.body", req.body);
-        console.log("req.file", req.file);
+        // console.log("req.body", req.body);
+        // console.log("req.file", req.file);
 
         const { id } = req.params;
         const { question, explanation, subject, level, hint, subtitle } = req.body;
@@ -158,7 +158,7 @@ exports.deleteFlashcard = async (req, res) => {
 
         // Find the flashcard by ID
         const flashcard = await Flashcard.findById(id);
-        console.log("flashcard", flashcard);
+        // console.log("flashcard", flashcard);
 
         if (!flashcard) {
             return res.status(404).json({
@@ -170,11 +170,11 @@ exports.deleteFlashcard = async (req, res) => {
         // Get the level and subject of the flashcard
         const level = flashcard.level;
         const subject = flashcard.subject;
-        console.log("level", typeof level);
+        // console.log("level", typeof level);
 
         // Count how many flashcards exist for this subject and level
         const count = await Flashcard.countDocuments({ level, subject });
-        console.log("count in level", count);
+        // console.log("count in level", count);
 
         // Check if there's more than one flashcard for the same subject and level
         // if (count <= 1) {
@@ -473,7 +473,7 @@ exports.getRoadmap = async (req, res) => {
 
         // Find user's submitted flashcards for the specific subject
         const userFlashcardData = await UserFlashcard.find({ userId, subject });
-        console.log("userAllsubmittedFlashcard", userFlashcardData);
+        // console.log("userAllsubmittedFlashcard", userFlashcardData);
 
         const levels = {};
 
@@ -714,11 +714,11 @@ exports.getAllFlashCardDataInLevel = async (req, res) => {
 
         // Find all flashcards for the given level and subject
         const findFlashcardInLevel = await Flashcard.find({ level, subject });
-        console.log("findFlashcardInLevel", findFlashcardInLevel);
+        // console.log("findFlashcardInLevel", findFlashcardInLevel);
 
         // Find all flashcards submitted by the user
         const getUserSubmittedFlashcard = await UserFlashcard.find({ userId, subject, level });
-        console.log("getUserSubmittedFlashcard", getUserSubmittedFlashcard);
+        // console.log("getUserSubmittedFlashcard", getUserSubmittedFlashcard);
 
         // Check if any flashcards were found for the level and subject
         if (findFlashcardInLevel.length === 0) {
@@ -737,8 +737,8 @@ exports.getAllFlashCardDataInLevel = async (req, res) => {
             flashcard => submittedFlashcardIds.has(flashcard._id.toString())
         );
 
-        console.log("unusedFlashcards", unusedFlashcards);
-        console.log("usedFlashcards", usedFlashcards);
+        // console.log("unusedFlashcards", unusedFlashcards);
+        // console.log("usedFlashcards", usedFlashcards);
 
         // Start with unused flashcards
         let finalFlashcards = unusedFlashcards.slice(0, cardsLength);
@@ -754,7 +754,7 @@ exports.getAllFlashCardDataInLevel = async (req, res) => {
             finalFlashcards = finalFlashcards.concat(shuffledUsedFlashcards.slice(0, remainingNeeded));
         }
 
-        console.log("finalFlashcards", finalFlashcards);
+        // console.log("finalFlashcards", finalFlashcards);
 
         // Create the response data
         const responseData = {
@@ -768,7 +768,7 @@ exports.getAllFlashCardDataInLevel = async (req, res) => {
             }))
         };
 
-        console.log("flashcards", responseData);
+        // console.log("flashcards", responseData);
 
         // Return the flashcards in the response
         return res.status(200).json({
@@ -824,13 +824,13 @@ exports.submitFlashcard = async (req, res) => {
                 level: flashCard.level // Set the level from flashcard
             });
             await userFlashcard.save();
-            console.log("New userFlashcard created:", userFlashcard);
+            // console.log("New userFlashcard created:", userFlashcard);
         } else {
             // If found, update the existing submission
             userFlashcard.isRead = true;
             userFlashcard.lastReadAt = new Date();
             await userFlashcard.save();
-            console.log("Existing userFlashcard updated:", userFlashcard);
+            // console.log("Existing userFlashcard updated:", userFlashcard);
         }
 
         // Check if all flashcards in the same level are read
@@ -841,12 +841,12 @@ exports.submitFlashcard = async (req, res) => {
             isRead: false
         });
 
-        console.log("Unread flashcards in level:", unreadFlashcards);
+        // console.log("Unread flashcards in level:", unreadFlashcards);
 
         if (unreadFlashcards.length === 0) {
             // Unlock the next level if all flashcards in the current level are read
             const nextLevel = userFlashcard.level + 1;
-            console.log(`All flashcards read. Unlock next level: ${nextLevel}`);
+            // console.log(`All flashcards read. Unlock next level: ${nextLevel}`);
             // Implement the unlock logic here if necessary
         }
 
@@ -859,7 +859,7 @@ exports.submitFlashcard = async (req, res) => {
 
         const totalLevels = 10; // Assuming 10 levels per subject, adjust as needed
         if (completedLevels.length === totalLevels) {
-            console.log("All levels completed for this subject.");
+            // console.log("All levels completed for this subject.");
             // Implement logic for unlocking the next subject here
         }
 
@@ -879,7 +879,7 @@ exports.getUserSubmitFlashcard = async (req, res) => {
     try {
         // Extract token from headers
         const token = req.headers.authorization?.split(" ")[1];
-        console.log("Token in myProfile:", token);
+        // console.log("Token in myProfile:", token);
 
         // Check for token presence
         if (!token) {
@@ -894,12 +894,12 @@ exports.getUserSubmitFlashcard = async (req, res) => {
         const userId = decoded.userId; // Assuming userId is stored in the token
 
         // Log the user ID
-        console.log("Decoded User ID:", userId);
+        // console.log("Decoded User ID:", userId);
 
         // Retrieve the most recent user flashcard
         const userFlashcard = await UserFlashcard.findOne({ userId })
             .sort({ createdAt: -1 });
-        console.log("userFlashcard laytest", userFlashcard) // Sort to get the most recent flashcard
+        // console.log("userFlashcard laytest", userFlashcard) // Sort to get the most recent flashcard
 
         // Check if the user has any flashcards
         if (!userFlashcard) {
@@ -911,7 +911,7 @@ exports.getUserSubmitFlashcard = async (req, res) => {
 
         // Retrieve the flashcard details
         const flashcardDetails = await Flashcard.findById(flashcardId);
-        console.log("flashcard", flashcardDetails)
+        // console.log("flashcard", flashcardDetails)
 
         // Check if the flashcard exists
         if (!flashcardDetails) {

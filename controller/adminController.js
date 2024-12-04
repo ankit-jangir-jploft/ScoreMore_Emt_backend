@@ -27,7 +27,7 @@ function formatDate(date) {
 exports.signInWithPassword = async (req, res) => {
     try {
       const { email, password } = req.body;
-      console.log("req, body", req.body);
+    //   console.log("req, body", req.body);
   
       // Validate input
       if (!email || !password) {
@@ -39,7 +39,7 @@ exports.signInWithPassword = async (req, res) => {
   
       // Find the user by email
       let user = await User.findOne({ email });
-      console.log("user", user);
+    //   console.log("user", user);
       if (!user) {
         return res.status(400).json({
           message: "Incorrect email or password!",
@@ -106,7 +106,7 @@ exports.signInWithPassword = async (req, res) => {
 exports.getDashboardData = async (req, res) => {
     try {
 
-        console.log("req.body", req.body)
+        // console.log("req.body", req.body)
         const { filters } = req.body;
 
         let startsDate, endsDate;
@@ -126,8 +126,8 @@ exports.getDashboardData = async (req, res) => {
         const startDate = formatDate(startsDate);
         const endDate = formatDate(endsDate);
         
-        console.log("Start Date:", startDate);
-        console.log("End Date:", endDate);
+        // console.log("Start Date:", startDate);
+        // console.log("End Date:", endDate);
 
         // Default filters if not provided
         const subscriptionStatus = filters?.subscriptionStatus || 'active';
@@ -159,10 +159,10 @@ exports.getDashboardData = async (req, res) => {
             createdAt: { $gte: startsDate, $lte: endsDate }
         });
         const totalTestsCount = await TestResult.countDocuments();
-        console.log("Total Tests Count:", totalTestsCount);
+        // console.log("Total Tests Count:", totalTestsCount);
 
         const distinctTestTypes = await TestResult.distinct("testType");
-        console.log("Distinct Test Types:", distinctTestTypes);
+        // console.log("Distinct Test Types:", distinctTestTypes);
 
         const testResults = await TestResult.find({
             ...(filters?.testType && { testType: filters.testType }),
@@ -182,14 +182,14 @@ exports.getDashboardData = async (req, res) => {
             return acc;
         }, {});
 
-        console.log("Test Stats Map:", testStatsMap);
+        // console.log("Test Stats Map:", testStatsMap);
 
         const resultTestStats = distinctTestTypes.map(testType => ({
             _id: testType,
             totalSubmittedTests: testStatsMap[testType] || 0
         }));
 
-        console.log("Result Test Stats:", resultTestStats);
+        // console.log("Result Test Stats:", resultTestStats);
 
         const totalRevenue = await Subscription.aggregate([
             {
@@ -330,7 +330,7 @@ exports.deactivateUser = async (req, res) => {
         user.isBlocked = true;
         user.isActive = false;
         await user.save();
-        console.log("user after block", user)
+        // console.log("user after block", user)
 
         return res.status(200).json({
             message: 'User account deactivated successfully',
@@ -361,7 +361,7 @@ exports.unblockUser = async (req, res) => {
         user.isBlocked = false; 
         user.isActive = true;
         await user.save();
-        console.log("user after unblock", user)
+        // console.log("user after unblock", user)
 
         return res.status(200).json({
             message: 'User account reactivated successfully',
@@ -496,7 +496,7 @@ exports.userExcel = async (req, res) => {
 // Create a new subscription with Stripe integration
 exports.createSubscription = async (req, res) => {
     try {
-        console.log("req.body", req.body);
+        // console.log("req.body", req.body);
         const { title, price, subscriptionTime } = req.body; // Use subscriptionType here
 
         // Validate subscriptionType input
@@ -528,7 +528,7 @@ exports.createSubscription = async (req, res) => {
         });
 
         // Log the created price
-        console.log('Stripe Price Created:', stripePrice);
+        // console.log('Stripe Price Created:', stripePrice);
 
         // Step 3: Save the subscription with Stripe IDs to the database
         const subscription = new SubscriptionSchema({
@@ -665,7 +665,7 @@ exports.deleteSubscription = async (req, res) => {
     try {
         const { id } = req.params;
         const subscription = await SubscriptionSchema.findById(id);
-        console.log("subscription123", subscription)
+        // console.log("subscription123", subscription)
         
         if (!subscription) {
             return res.status(404).json({
@@ -679,7 +679,7 @@ exports.deleteSubscription = async (req, res) => {
         
         // Check if any users are using this subscription plan
         const userSubscription = await Subscription.find({subscriptionPlan : subscription.stripePriceId});
-        console.log("userSubsc", userSubscription);
+        // console.log("userSubsc", userSubscription);
 
         if (userSubscription.length > 0) {
             return res.status(200).json({

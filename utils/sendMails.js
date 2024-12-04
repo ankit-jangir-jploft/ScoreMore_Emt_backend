@@ -7,7 +7,7 @@ const { SENDGRID_API_KEY, MAIL_ID } = process.env;
 sgMail.setApiKey(SENDGRID_API_KEY);
 
 module.exports.sendMail = async (mailOptions) => {
-  console.log("MAIL_ID",MAIL_ID, SENDGRID_API_KEY)
+  // console.log("MAIL_ID",MAIL_ID, SENDGRID_API_KEY)
   try {
     // Construct the email message
     const msg = {
@@ -20,7 +20,7 @@ module.exports.sendMail = async (mailOptions) => {
 
     // Send the email using SendGrid
     const result = await sgMail.send(msg);
-    console.log('Email sent:', result);
+    // console.log('Email sent:', result);
     return true;
   } catch (error) {
     console.error('Error sending email11:', error.response?.body || error.message);

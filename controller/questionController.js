@@ -414,7 +414,7 @@ exports.filterQuestions = async (req, res) => {
 
 exports.addQuestion = async (req, res) => {
   try {
-    console.log("req.body", req.body);
+    // console.log("req.body", req.body);
     const {
       question,
       options,
@@ -647,7 +647,7 @@ exports.addQuestionFromCsv = async (req, res) => {
 };
 
 exports.submitQuestionFeedback = async (req, res) => {
-  console.log("req.bodysss", req.body);
+  // console.log("req.bodysss", req.body);
 
   const { userId, questionId, feedbackText } = req.body;
 
@@ -658,20 +658,20 @@ exports.submitQuestionFeedback = async (req, res) => {
 
   try {
     // Retrieve the user from the database to get their email, full name, and userType
-    console.log("rhitss");
+    // console.log("rhitss");
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
     // Retrieve the question from the database to get its details
-    console.log("rhitssaa");
+    // console.log("rhitssaa");
     const question = await Question.findById(questionId);
     if (!question) {
       return res.status(404).json({ message: 'Question not found' });
     }
 
-    console.log("question", question)
+    // console.log("question", question)
 
     // Create a new feedback document with additional user and question information
     const newFeedback = new Feedback({
@@ -688,7 +688,7 @@ exports.submitQuestionFeedback = async (req, res) => {
       
     });
 
-    console.log("newFeed0", newFeedback);
+    // console.log("newFeed0", newFeedback);
 
     // Save the feedback document
     await newFeedback.save();

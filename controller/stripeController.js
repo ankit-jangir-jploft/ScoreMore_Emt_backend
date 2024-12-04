@@ -12,11 +12,11 @@ exports.checkout = async (req, res) => {
         // Step 1: Fetch subscription details from your admin API
         const response = await axios.get(`${process.env.LOCAL_URL}/api/admin/getAllSubscriptions`);
         const subscriptions = response.data.subscriptions;
-        console.log("subscriptions", subscriptions)
+        // console.log("subscriptions", subscriptions)
 
         // Step 2: Find the subscription details based on the priceId
         const selectedSubscription = subscriptions.find(sub => sub.stripePriceId === priceId);
-        console.log("selectedSubscription", selectedSubscription)
+        // console.log("selectedSubscription", selectedSubscription)
 
         if (!selectedSubscription) {
             return res.status(400).json({
@@ -32,8 +32,8 @@ exports.checkout = async (req, res) => {
             subscriptionTime === "3_months" ? 90 :
                 subscriptionTime === "12_months" ? 365 : 0;
 
-        console.log("Stripe Price ID:", stripePriceId);
-        console.log("Plan Duration (in days):", planDuration);
+        // console.log("Stripe Price ID:", stripePriceId);
+        // console.log("Plan Duration (in days):", planDuration);
 
         // Step 3: Check if the user already has an active subscription
         const existingSubscription = await Subscription.findOne({ userId }).sort({ createdAt: -1 });
@@ -66,7 +66,7 @@ exports.checkout = async (req, res) => {
             cancel_url: process.env.FAILURE_URL,
         });
 
-        console.log("Stripe Session:", session);
+        // console.log("Stripe Session:", session);
 
         // Step 5: Create the new subscription object only after the session is created
         const newSubscription = new Subscription({
@@ -82,7 +82,7 @@ exports.checkout = async (req, res) => {
             expiresAt: new Date(Date.now() + planDuration * 24 * 60 * 60 * 1000), // Set expiration date
         });
 
-        console.log("New Subscription:", newSubscription);
+        // console.log("New Subscription:", newSubscription);
 
         // Step 6: Save the subscription after session creation
         await newSubscription.save();
@@ -115,7 +115,7 @@ exports.stripeSession = async (req, res) => {
     try {
         const { userId } = req.body; // Get userId from request body
         const user = await User.findById(userId);
-        console.log("User:", user); // Find the user in the database
+        // console.log("User:", user); // Find the user in the database
 
         if (!user) {
             return res.status(404).json({
@@ -126,7 +126,7 @@ exports.stripeSession = async (req, res) => {
 
         // Retrieve the latest subscription associated with the user
         const subscription = await Subscription.findOne({ userId }).sort({ createdAt: -1 });
-        console.log("Subscription:", subscription);
+        // console.log("Subscription:", subscription);
 
         if (!subscription) {
             return res.status(404).json({
@@ -137,7 +137,7 @@ exports.stripeSession = async (req, res) => {
 
         // Retrieve the checkout session using the transactionId from the subscription
         const session = await stripe.checkout.sessions.retrieve(subscription.transactionId);
-        console.log("Session in Subscription:", session);
+        // console.log("Session in Subscription:", session);
 
         // Check if session exists
         if (!session) {
@@ -156,7 +156,7 @@ exports.stripeSession = async (req, res) => {
             user.subscriptionId = subscription._id;
             await user.save();
 
-            console.log("Subscription and user updated to active status");
+            // console.log("Subscription and user updated to active status");
         }
 
         res.status(200).json({
