@@ -9,9 +9,9 @@ const { datacatalog_v1 } = require("googleapis");
 
 exports.examRecord = async (req, res) => {
     try {
-      console.log("req.body", req.body)
+      // console.log("req.body", req.body)
         const { testId, userId } = req.body;
-        console.log("userId",typeof userId)
+        // console.log("userId",typeof userId)
 
         // Fetch all questions related to the test
         const findAllTestQuestion = await FilteredQuestion.find({ testId });
@@ -23,7 +23,7 @@ exports.examRecord = async (req, res) => {
             .populate('questionId');
             
 
-            console.log("findData", findData)
+            // console.log("findData", findData)
 
         if (!findAllTestQuestion || findAllTestQuestion.length === 0) {
             return res.status(404).json({
@@ -74,7 +74,7 @@ exports.examRecord = async (req, res) => {
             };
         });
 
-        console.log("Merged Data", mergedData);
+        // console.log("Merged Data", mergedData);
 
         res.status(200).json({
             success: true,
@@ -111,7 +111,7 @@ exports.todayDailyChallangeStatus = async (req, res) => {
      const userIdMatchCondition = mongoose.Types.ObjectId.isValid(userId)
      ? new mongoose.Types.ObjectId(userId) 
      : userId; 
-     console.log("userIdMatchCondition", userIdMatchCondition)
+    //  console.log("userIdMatchCondition", userIdMatchCondition)
  
      const todayDailyChallenge = await TestResult.findOne({
        userId ,
@@ -135,8 +135,8 @@ exports.todayDailyChallangeStatus = async (req, res) => {
        testId,
      });
 
-     console.log("userQuestionData", userQuestionData[0]);
-     console.log("userQuestionData[0].userSelectedOption", userQuestionData[0].userSelectedOption)
+    //  console.log("userQuestionData", userQuestionData[0]);
+    //  console.log("userQuestionData[0].userSelectedOption", userQuestionData[0].userSelectedOption)
  
      if (userQuestionData.length === 0) {
        return res.status(200).json({
@@ -191,7 +191,7 @@ exports.getPerOptionPercentage = async (req, res) => {
     try {
         const { questionId } = req.body;
         const findQuestion = await Question.findById(questionId);
-        console.log("findQuestion", findQuestion);
+        // console.log("findQuestion", findQuestion);
         // Validate the required fields
         if (!questionId) {
             return res.status(400).json({

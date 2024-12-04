@@ -5,9 +5,9 @@ const { User } = require("../models/User");
 const isAuthenticated = async (req, res, next) => {
   try {
     // Retrieve the token from the Authorization header
-    console.log("req.headers", req.headers)
+    // console.log("req.headers", req.headers)
     const token = req.headers['authorization' || 'Authorization']?.split(' ')[1];
-    console.log("token in auth", token )
+    // console.log("token in auth", token )
 
     // Check if the token is present
     if (!token) {
@@ -27,7 +27,7 @@ const isAuthenticated = async (req, res, next) => {
     }
 
     // Find user by ID and set it in req.user
-    console.log("decoded.userId", decoded.userId)
+    // console.log("decoded.userId", decoded.userId)
     const user = await User.findById(decoded.userId); // Ensure your JWT has a userId in the payload
     if (!user) {
       return res.status(401).json({

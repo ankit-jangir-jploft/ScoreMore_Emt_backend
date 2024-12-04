@@ -31,8 +31,8 @@ const TestResult = require('../models/TestResult');
 
 
 async function updateGuestReferences(oldUserId, newUserId) {
-  console.log("oldUserId", oldUserId)
-  console.log("newUserId", newUserId)
+  // console.log("oldUserId", oldUserId)
+  // console.log("newUserId", newUserId)
   try {
     // Update the `userId` in the `UserQuestionData` model
     await UserQuestionData.updateMany(
@@ -54,7 +54,7 @@ async function updateGuestReferences(oldUserId, newUserId) {
       { $set: { isGuest: false } } // Mark the user as a regular user
     );
 
-    console.log("References updated successfully.");
+    // console.log("References updated successfully.");
   } catch (error) {
     console.error("Error updating guest references:", error);
     throw new Error("Failed to update guest references");
@@ -94,7 +94,7 @@ exports.signup = async (req, res) => {
 
     // Check if a guest user exists with the same guestId
     const guestUser = guestId ? await User.findById(guestId) : null;
-    console.log("guestUser", guestUser)
+    // console.log("guestUser", guestUser)
 
     // Hash the password
     const hashPassword = await bcrypt.hash(password, 10);
@@ -111,9 +111,9 @@ exports.signup = async (req, res) => {
       guestUser.updatedAt = new Date();
 
       newUser = await guestUser.save();
-      console.log("newUser", newUser);
+      // console.log("newUser", newUser);
       await updateGuestReferences(guestUser._id, newUser._id);
-      console.log("newUser", newUser, guestUser);
+      // console.log("newUser", newUser, guestUser);
     } else {
       newUser = await User.create({
         firstName,
@@ -465,12 +465,12 @@ exports.verifyOTP = async (req, res) => {
 
 exports.socialLogin = async (req, res) => {
   try {
-    console.log("re.bosd", req.body);
+    // console.log("re.bosd", req.body);
     const { email, socialId, firstName, lastName, registrationType } = req.body;
 
     // Check if the user exists with the given email
     let user = await User.findOne({ email });
-    console.log("user", user)
+    // console.log("user", user)
       
     // If user exists
     if (user) {
@@ -1064,7 +1064,7 @@ exports.getUserDetail = async (req, res) => {
 
 exports.userQuestionData = async (req, res) => {
   try {
-    console.log("req.body", req.body);
+    // console.log("req.body", req.body);
     const {
       userId,
       questionId,
@@ -1425,9 +1425,11 @@ exports.allExamRecord = async (req, res) => {
     // console.log("User Questions Found:", userQuestions);
 
     if (userQuestions.length === 0) {
-      return res.status(404).json({
-        success: false,
+      return res.status(200).json({
+        success: true,
         message: "No question data found for this user.",
+        overallStats:[],
+        subjectInsights: [],
       });
     }
 
@@ -1582,14 +1584,14 @@ exports.getSubscriptionDetails = async (req, res) => {
         message: "No subscription found for this user",
       });
     }
-    console.log("subscription", subscription)
+    // console.log("subscription", subscription)
 
     // Calculate remaining days
     const currentDate = new Date();
     const expiresAt = new Date(subscription.expiresAt);
-    console.log("cfasfc", expiresAt, currentDate);
+    // console.log("cfasfc", expiresAt, currentDate);
     const remainingDays = Math.max(Math.ceil((expiresAt - currentDate) / (1000 * 60 * 60 * 24)), 0); // Ensure no negative values
-    console.log("reaming days", remainingDays);
+    // console.log("reaming days", remainingDays);
 
     // Prepare the subscription details to return
     const subscriptionDetails = {
@@ -1803,7 +1805,7 @@ exports.createGuest = async (req, res) => {
 
 exports.userDailyStreak = async (req, res) => {
   try {
-    console.log("API hit");
+    // console.log("API hit");
     const { userId } = req.body;
 
     if (!userId) {
@@ -1950,14 +1952,14 @@ if (!fs.existsSync(pdfDirectory)) {
 }
 
 exports.getInvoicetemplate = async (req, res) => {
-  console.log("req.params", req.params);
+  // console.log("req.params", req.params);
   const invoiceId = req.params.id;
-  console.log("invoice id", invoiceId);
+  // console.log("invoice id", invoiceId);
 
   try {
     // Search for the subscription using the transactionId
     const subscription = await Subscription.findOne({ transactionId: invoiceId });
-    console.log("subscription", subscription);
+    // console.log("subscription", subscription);
 
     if (!subscription) {
       return res.status(404).json({ success: false, message: "Invoice not found." });
@@ -1965,7 +1967,7 @@ exports.getInvoicetemplate = async (req, res) => {
 
     // Fetch user details based on userId from subscription
     const user = await User.findById(subscription.userId);
-    console.log("user", user)
+    // console.log("user", user)
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found." });
     }
@@ -1982,8 +1984,8 @@ exports.getInvoicetemplate = async (req, res) => {
 
     // Get the invoice data
     const invoiceData = await getInvoiceData(invoiceId, subscription, clientDetails);
-    console.log("invoice data", invoiceData);
-    console.log("template path", templatePath);
+    // console.log("invoice data", invoiceData);
+    // console.log("template path", templatePath);
 
     // Render the invoice using EJS
     ejs.renderFile(templatePath, invoiceData, async (err, html) => {
@@ -1992,7 +1994,7 @@ exports.getInvoicetemplate = async (req, res) => {
         return res.status(500).send('Error generating invoice');
       }
 
-      console.log('Generated HTML:', html);
+      // console.log('Generated HTML:', html);
 
       try {
         const pdfPath = await generatePDFBuffer(html, invoiceId);
@@ -2132,7 +2134,7 @@ exports.sendReminder = async (req, res) => {
             subject: "Daily Reminder",
             text: message,
           });
-          console.log(`Daily reminder sent to ${email}`);
+          // console.log(`Daily reminder sent to ${email}`);
 
           // Update sentDate after the email is sent
           await Reminder.findByIdAndUpdate(
@@ -2169,7 +2171,7 @@ exports.sendReminder = async (req, res) => {
             subject: "One-time Reminder",
             text: message,
           });
-          console.log(`One-time reminder sent to ${email}`);
+          // console.log(`One-time reminder sent to ${email}`);
 
           // Update sentDate after the email is sent
           await Reminder.findByIdAndUpdate(
@@ -2178,7 +2180,7 @@ exports.sendReminder = async (req, res) => {
             { new: true }
           );
         } catch (emailError) {
-          console.error(`Error sending one-time reminder to ${email}:`, emailError);
+          // console.error(`Error sending one-time reminder to ${email}:`, emailError);
         }
       });
 
@@ -2291,7 +2293,7 @@ async function sendEmail(mailOptions) {
 
     // Send the email using SendGrid
     const response = await sgMail.send(msg);
-    console.log("Email sent successfully:", response);
+    // console.log("Email sent successfully:", response);
     return true;
   } catch (error) {
     console.error("Error sending email:", error.response?.body || error.message);

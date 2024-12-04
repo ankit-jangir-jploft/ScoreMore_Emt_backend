@@ -5,9 +5,9 @@ const Reminder = require("../models/Reminder");
 const cleanupCompletedReminders = async () => {
   
   try {
-    console.log("it hitsssss")
+    // console.log("it hitsssss")
     const now = new Date();
-    console.log(`[${now.toISOString()}] Cleanup process started.`);
+    // console.log(`[${now.toISOString()}] Cleanup process started.`);
 
     // Remove reminders that are complete
     // A reminder is "complete" if the current time is past its dateTime and it has a sentDate
@@ -17,9 +17,9 @@ const cleanupCompletedReminders = async () => {
     });
 
     if (result.deletedCount > 0) {
-      console.log(`[${now.toISOString()}] Successfully removed ${result.deletedCount} completed reminders.`);
+      // console.log(`[${now.toISOString()}] Successfully removed ${result.deletedCount} completed reminders.`);
     } else {
-      console.log(`[${now.toISOString()}] No completed reminders to remove.`);
+      // console.log(`[${now.toISOString()}] No completed reminders to remove.`);
     }
   } catch (error) {
     console.error(`[${new Date().toISOString()}] Error during cleanup of completed reminders:`, error.message);

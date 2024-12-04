@@ -22,10 +22,9 @@ const port = process.env.PORT || 4748;
 // CORS setup
 const corsOptions = {
     origin: (origin, callback) => {
-        // Allow all origins
         callback(null, true);
     },
-    credentials: true, // Allow credentials (cookies, authorization headers, etc.)
+    credentials: true, 
 };
 
 app.use(cors(corsOptions));
