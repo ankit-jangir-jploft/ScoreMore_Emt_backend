@@ -210,6 +210,10 @@ const userFlashcardSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  isMarked: {
+    type: Boolean,
+    default: false
+  },
   lastReadAt: {
     type: Date
   },

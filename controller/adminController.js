@@ -13,6 +13,7 @@ const { default: mongoose } = require("mongoose");
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { contactUs } = require("./userController");
+const Subject = require("../models/Subject");
 
 
 
@@ -751,33 +752,33 @@ exports.getAllFlashcards = async (req, res) => {
 };
 
 // question
-exports.getAllSubjects = async (req, res) => {
-    try {
-        // Fetch distinct subjects from questions in the database
-        const allSubjects = await Question.distinct('subject'); // You can filter by isActive if needed
+// exports.getAllSubjects = async (req, res) => {
+//     try {
+//         // Fetch distinct subjects from questions in the database
+//         const allSubjects = await Question.distinct('subject'); // You can filter by isActive if needed
 
-        if (allSubjects.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: "No subjects found",
-            });
-        }
+//         if (allSubjects.length === 0) {
+//             return res.status(404).json({
+//                 success: false,
+//                 message: "No subjects found",
+//             });
+//         }
 
-        // Send the response with the found subjects
-        res.status(200).json({
-            success: true,
-            subjects: allSubjects, // Return the subjects array
-        });
+//         // Send the response with the found subjects
+//         res.status(200).json({
+//             success: true,
+//             subjects: allSubjects, // Return the subjects array
+//         });
         
-    } catch (error) {
-        console.error("Error fetching subjects:", error);
-        res.status(500).json({
-            success: false,
-            message: 'Error fetching subjects in question',
-            error: error.message,
-        });
-    }
-};
+//     } catch (error) {
+//         console.error("Error fetching subjects:", error);
+//         res.status(500).json({
+//             success: false,
+//             message: 'Error fetching subjects in question',
+//             error: error.message,
+//         });
+//     }
+// };
 
 // review 
 exports.getAllReview = async (req, res) => {
@@ -944,8 +945,70 @@ exports.deleteFeedback = async (req, res) => {
       console.error("Error deleting feedback: ", error);
       res.status(500).json({ message: 'Server error, please try again later' });
     }
-  };
+};
   
+
+// subject curd
+
+exports.getAllSubjects = async (req, res) => {
+    const { page = 1, limit = 10 } = req.query;
+    try {
+        const subjects = await Subject.find()
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit));
+        const totalSubjects = await Subject.countDocuments();
+
+        res.json({
+            success: true,
+            subjects,
+            pagination: {
+                currentPage: parseInt(page),
+                totalPages: Math.ceil(totalSubjects / limit),
+            },
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Failed to fetch subjects' });
+    }
+}
+
+exports.addSubject = async (req, res) => {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ success: false, message: 'Subject name is required' });
+
+    try {
+        const newSubject = new Subject({ name });
+        await newSubject.save();
+        res.json({ success: true, message: 'Subject added successfully' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Failed to add subject' });
+    }
+}
+
+exports.updateSubject = async (req, res) => {
+    const { id } = req.params;
+    const { name } = req.body;
+
+    if (!name) return res.status(400).json({ success: false, message: 'Subject name is required' });
+
+    try {
+        await Subject.findByIdAndUpdate(id, { name });
+        res.json({ success: true, message: 'Subject updated successfully' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Failed to update subject' });
+    }
+}
+
+
+exports.deleteSubject = async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        await Subject.findByIdAndDelete(id);
+        res.json({ success: true, message: 'Subject deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Failed to delete subject' });
+    }
+}
   
 
 
