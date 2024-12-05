@@ -25,7 +25,7 @@ const flashcardSchema = new mongoose.Schema({
         default: false
     },
     level: {
-        type: String, // You can customize this as needed
+        type: String, 
         required: true
     },
     subtitle : {

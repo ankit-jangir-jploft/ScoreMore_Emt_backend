@@ -32,7 +32,6 @@ router.get("/getSubscriptionById/:id", adminController.getSubscriptionById);
 router.get("/getAllFlashcard", adminController.getAllFlashcards);
 
 // question
-router.get("/getAllSubjects", adminController.getAllSubjects);
 
 // review
 
@@ -49,5 +48,12 @@ router.delete("/deleteContactUsEnquiry/:id", adminController.deleteContact);
 
 router.get('/feedbacks', adminController.getAllFeedback);
 router.delete('/feedback/:feedbackId', adminController.deleteFeedback);
+
+
+// subject 
+router.get("/getAllSubjects", adminController.getAllSubjects);
+router.post("/addSubject", adminController.addSubject);
+router.put("/updateSubject/:id", adminController.updateSubject);
+router.delete("/deleteSubject/:id", adminController.deleteSubject);
 
 module.exports = router;

@@ -696,7 +696,6 @@ exports.getAllRoadmaps = async (req, res) => {
 };
 
 
-
 exports.getAllFlashCardDataInLevel = async (req, res) => {
     try {
         const token = req.headers.authorization?.split(" ")[1];
@@ -710,35 +709,38 @@ exports.getAllFlashCardDataInLevel = async (req, res) => {
         const decoded = jwt.verify(token, process.env.SECRET_KEY);
         const userId = decoded.userId;
 
-        const { level, subject, cardsLength } = req.body;
+        const { level, flashcardLevelName, subject, cardsLength, bookmarked } = req.body;
 
         // Find all flashcards for the given level and subject
         const findFlashcardInLevel = await Flashcard.find({ level, subject });
-        // console.log("findFlashcardInLevel", findFlashcardInLevel);
 
         // Find all flashcards submitted by the user
         const getUserSubmittedFlashcard = await UserFlashcard.find({ userId, subject, level });
-        // console.log("getUserSubmittedFlashcard", getUserSubmittedFlashcard);
 
-        // Check if any flashcards were found for the level and subject
         if (findFlashcardInLevel.length === 0) {
             return res.status(404).json({ message: 'No flashcards found for this level and subject.' });
         }
 
-        // Create a set of submitted flashcard IDs for quick lookup
-        const submittedFlashcardIds = new Set(getUserSubmittedFlashcard.map(f => f.flashcardId.toString()));
+        // Create a map of submitted flashcard IDs to their isMarked status
+        const submittedFlashcardMap = new Map();
+        getUserSubmittedFlashcard.forEach(flashcard => {
+            submittedFlashcardMap.set(flashcard.flashcardId.toString(), flashcard.isMarked);
+        });
 
         // Separate unused and used flashcards
-        const unusedFlashcards = findFlashcardInLevel.filter(
-            flashcard => !submittedFlashcardIds.has(flashcard._id.toString())
+        let unusedFlashcards = findFlashcardInLevel.filter(
+            flashcard => !submittedFlashcardMap.has(flashcard._id.toString())
         );
 
-        const usedFlashcards = findFlashcardInLevel.filter(
-            flashcard => submittedFlashcardIds.has(flashcard._id.toString())
+        let usedFlashcards = findFlashcardInLevel.filter(
+            flashcard => submittedFlashcardMap.has(flashcard._id.toString())
         );
 
-        // console.log("unusedFlashcards", unusedFlashcards);
-        // console.log("usedFlashcards", usedFlashcards);
+        // If bookmarked is true, filter only marked flashcards
+        if (bookmarked) {
+            unusedFlashcards = unusedFlashcards.filter(flashcard => submittedFlashcardMap.get(flashcard._id.toString()) === true);
+            usedFlashcards = usedFlashcards.filter(flashcard => submittedFlashcardMap.get(flashcard._id.toString()) === true);
+        }
 
         // Start with unused flashcards
         let finalFlashcards = unusedFlashcards.slice(0, cardsLength);
@@ -746,31 +748,28 @@ exports.getAllFlashCardDataInLevel = async (req, res) => {
         // If more flashcards are needed, add random ones from the remaining pool
         if (finalFlashcards.length < cardsLength) {
             const remainingNeeded = cardsLength - finalFlashcards.length;
-
-            // Shuffle usedFlashcards to get random entries
             const shuffledUsedFlashcards = usedFlashcards.sort(() => Math.random() - 0.5);
-
-            // Add required number of used flashcards to fill up to cardsLength
             finalFlashcards = finalFlashcards.concat(shuffledUsedFlashcards.slice(0, remainingNeeded));
         }
-
-        // console.log("finalFlashcards", finalFlashcards);
 
         // Create the response data
         const responseData = {
             level: level,
             noOfFlashcard: finalFlashcards.length,
             totalFlashCards: findFlashcardInLevel.length,
-            submittedFlashcards : getUserSubmittedFlashcard.length,
-            flashcards: finalFlashcards.map(flashcard => ({
-                ...flashcard._doc, // Spread the flashcard data
-                isRead: submittedFlashcardIds.has(flashcard._id.toString()) // Check if the flashcard has been submitted
-            }))
+            submittedFlashcards: getUserSubmittedFlashcard.length,
+            flashcardSubject: subject,
+            flashcardLevelName: flashcardLevelName,
+            flashcards: finalFlashcards.map(flashcard => {
+                const isMarked = submittedFlashcardMap.get(flashcard._id.toString()) || false;
+                return {
+                    ...flashcard._doc,
+                    isRead: submittedFlashcardMap.has(flashcard._id.toString()),
+                    isMarked, // Include the correct isMarked status
+                };
+            }),
         };
 
-        // console.log("flashcards", responseData);
-
-        // Return the flashcards in the response
         return res.status(200).json({
             success: true,
             message: 'Flashcards retrieved successfully.',
@@ -784,11 +783,98 @@ exports.getAllFlashCardDataInLevel = async (req, res) => {
 
 
 
+
+exports.getAllBookmarkedFlashcardDataInLevel = async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(" ")[1];
+        if (!token) {
+            return res.status(401).json({
+                message: "No token provided!",
+                success: false,
+            });
+        }
+
+        const decoded = jwt.verify(token, process.env.SECRET_KEY);
+        const userId = decoded.userId;
+
+        const { level, flashcardLevelName, subject, cardsLength } = req.body;
+
+        // Find all flashcards for the given level and subject
+        const findFlashcardInLevel = await Flashcard.find({ level, subject });
+
+        // Check if any flashcards were found for the level and subject
+        if (findFlashcardInLevel.length === 0) {
+            return res.status(404).json({ message: 'No flashcards found for this level and subject.' });
+        }
+
+        // Find all bookmarked flashcards submitted by the user
+        const getBookmarkedFlashcards = await UserFlashcard.find({ 
+            userId, 
+            subject, 
+            level, 
+            isMarked: true 
+        });
+
+        // If no bookmarked flashcards exist, return an empty list
+        if (getBookmarkedFlashcards.length === 0) {
+            return res.status(404).json({ 
+                success: true, 
+                message: 'No bookmarked flashcards found.', 
+                data: {
+                    level: level,
+                    noOfFlashcard: 0,
+                    totalFlashCards: findFlashcardInLevel.length,
+                    submittedFlashcards: 0,
+                    flashcardSubject: subject,
+                    flashcardLevelName: flashcardLevelName,
+                    flashcards: []
+                }
+            });
+        }
+
+        // Create a set of bookmarked flashcard IDs for quick lookup
+        const bookmarkedFlashcardIds = new Set(getBookmarkedFlashcards.map(f => f.flashcardId.toString()));
+
+        // Filter flashcards to include only the bookmarked ones
+        const bookmarkedFlashcards = findFlashcardInLevel.filter(
+            flashcard => bookmarkedFlashcardIds.has(flashcard._id.toString())
+        );
+
+        // Limit the results to the specified cardsLength
+        const finalFlashcards = bookmarkedFlashcards.slice(0, cardsLength);
+
+        // Create the response data
+        const responseData = {
+            level: level,
+            noOfFlashcard: finalFlashcards.length,
+            totalFlashCards: findFlashcardInLevel.length,
+            submittedFlashcards: getBookmarkedFlashcards.length,
+            flashcardSubject: subject,
+            flashcardLevelName: flashcardLevelName,
+            flashcards: finalFlashcards.map(flashcard => ({
+                ...flashcard._doc, // Spread the flashcard data
+                isRead: bookmarkedFlashcardIds.has(flashcard._id.toString()) 
+            }))
+        };
+
+        // Return the flashcards in the response
+        return res.status(200).json({
+            success: true,
+            message: 'Bookmarked flashcards retrieved successfully.',
+            data: responseData,
+        });
+    } catch (err) {
+        console.error("Error retrieving flashcards:", err);
+        return res.status(500).json({ message: "Internal server error", success: false });
+    }
+};
+
+
+
 exports.submitFlashcard = async (req, res) => {
-    const { userId, flashcardId } = req.body;
+    const { userId, flashcardId , isMarked} = req.body;
 
     try {
-        // Find the flashcard by its ID
         let flashCard = await Flashcard.findById(flashcardId);
         if (!flashCard) {
             return res.status(404).json({ message: "Flashcard not found", success: false });
@@ -819,6 +905,7 @@ exports.submitFlashcard = async (req, res) => {
                 userId,
                 flashcardId,
                 isRead: true,
+                isMarked : isMarked,
                 lastReadAt: new Date(),
                 subject: flashCard.subject, // Set the subject from flashcard
                 level: flashCard.level // Set the level from flashcard
@@ -828,6 +915,7 @@ exports.submitFlashcard = async (req, res) => {
         } else {
             // If found, update the existing submission
             userFlashcard.isRead = true;
+            userFlashcard.isMarked = isMarked;
             userFlashcard.lastReadAt = new Date();
             await userFlashcard.save();
             // console.log("Existing userFlashcard updated:", userFlashcard);
