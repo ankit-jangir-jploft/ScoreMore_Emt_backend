@@ -8,7 +8,6 @@ const jwt = require("jsonwebtoken");
 const nodeMailer = require("nodemailer");
 const crypto = require("crypto");
 const path = require('path');
-const pdf = require('puppeteer');
 const { default: mongoose } = require("mongoose");
 const FilteredQuestion = require("../models/FilterQuestionTestData");
 const UserStrike = require("../models/StrikeCount");
@@ -19,6 +18,7 @@ const schedule = require("node-schedule");
 const Contact = require("../models/Contact");
 const Reminder = require("../models/Reminder");
 const { cleanupCompletedReminders } = require("../utils/CleanUpReminders");
+const puppeteer = require('puppeteer');
 
 // Adjust the paths as per your project structure
 const templatePath = path.join(__dirname, '..', 'views', 'templates', 'transactionInvoice.ejs');
@@ -28,7 +28,7 @@ const publicDirectory = path.join(__dirname, '..', 'public');
 
 const { User, UserQuestionData, Subscription, UserRating } = require("../models/User");
 const TestResult = require('../models/TestResult');
-
+const Subject = require("../models/Subject");
 
 async function updateGuestReferences(oldUserId, newUserId) {
   // console.log("oldUserId", oldUserId)
@@ -60,8 +60,6 @@ async function updateGuestReferences(oldUserId, newUserId) {
     throw new Error("Failed to update guest references");
   }
 }
-
-
 
 exports.signup = async (req, res) => {
   try {
@@ -461,8 +459,8 @@ exports.verifyOTP = async (req, res) => {
     });
   }
 };
-// social login 
 
+// social login 
 exports.socialLogin = async (req, res) => {
   try {
     // console.log("re.bosd", req.body);
@@ -556,11 +554,6 @@ exports.socialLogin = async (req, res) => {
     });
   }
 };
-
-
-
-
-
 
 exports.forgotPassword = async (req, res) => {
   try {
@@ -696,7 +689,7 @@ exports.resetPassword = async (req, res) => {
 
 exports.updateUserStatus = async (req, res) => {
   try {
-    const { _id } = req.user; // Assuming user ID is available from authentication middleware
+    const { _id } = req.user; 
     const { isActive, isVerified } = req.body;
 
     const user = await User.findById(_id);
@@ -1409,6 +1402,14 @@ exports.lastSubmitQuestion = async (req, res) => {
   }
 };
 
+function toCamelCase(str) {
+  return str
+    .replace(/(?:^\w|[A-Z]|\b\w|\s+)/g, (match, index) =>
+      index === 0 ? match.toLowerCase() : match.toUpperCase()
+    )
+    .replace(/\s+/g, '');
+}
+
 exports.allExamRecord = async (req, res) => {
   try {
     // Extracting userId from the request body
@@ -1428,7 +1429,7 @@ exports.allExamRecord = async (req, res) => {
       return res.status(200).json({
         success: true,
         message: "No question data found for this user.",
-        overallStats:{ totalUniqueQuestions: 0, totalCorrectQuestions: 0, percentage: 0 },
+        overallStats:[],
         subjectInsights: [],
       });
     }
@@ -1554,6 +1555,10 @@ exports.allExamRecord = async (req, res) => {
     });
   }
 };
+
+
+
+
 
 exports.getSubscriptionDetails = async (req, res) => {
   try {
@@ -1686,14 +1691,27 @@ exports.createGuest = async (req, res) => {
   try {
       const { guestId } = req.body;
 
+      // Validate if guestId is provided
+      if (!guestId) {
+          return res.status(400).json({
+              success: false,
+              message: 'Guest ID is required!',
+          });
+      }
+
       // Check if the guest user already exists
+      console.log("guestId", guestId);
       let guestUser = await User.findOne({ guestId });
+      console.log("guestUser", guestUser);
+
       if (!guestUser) {
           // If the guest user does not exist, create a new one
           guestUser = new User({
               guestId,
               isGuest: true, 
               isBlocked: false, 
+              email: `guest_${guestId}@example.com`,  // Provide a unique email
+              name: `Guest-${guestId}`,  // Optionally, set a name or other details
           });
 
           await guestUser.save();
@@ -1701,9 +1719,9 @@ exports.createGuest = async (req, res) => {
 
       // Generate a JWT token for the guest user
       const tokenData = { userId: guestUser._id };
-      const token = jwt.sign(tokenData, process.env.SECRET_KEY
-      );
-     console.log("guestUser", guestUser)
+      const token = jwt.sign(tokenData, "SCOREMORE");
+
+      console.log("guestUser", guestUser);
       // Send the response with the user data and token
       res.status(201).json({
           success: true,
@@ -1715,6 +1733,7 @@ exports.createGuest = async (req, res) => {
       res.status(500).json({ success: false, message: 'Error creating guest user!' });
   }
 };
+
 
 
 
@@ -2012,6 +2031,7 @@ exports.getInvoicetemplate = async (req, res) => {
   }
 };
 
+
 const getInvoiceData = async (invoiceId, subscription, clientDetails) => {
   // Calculate total amount based on subscription payment amount
   const totalAmount = subscription.paymentAmount; // You can adjust this if needed
@@ -2033,23 +2053,40 @@ const getInvoiceData = async (invoiceId, subscription, clientDetails) => {
       // Add more items if necessary
     ],
     totalAmount: totalAmount,
-    companyLogo: 'http://v4.checkprojectstatus.com:4749/assets/score-logo-B5Zg32ei.svg'
+    companyLogo: `${process.env.LOCAL_URL}'/assets/profile_pictures/score-logo.svg`
   };
 };
 
 const generatePDFBuffer = async (html, invoiceId) => {
-  const browser = await pdf.launch();
-  const page = await browser.newPage();
-  await page.setContent(html);
+  try {
+    // Launch Puppeteer in headless mode with required flags for server environments
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
 
-  // Define the path to save the PDF
-  const pdfPath = path.join(pdfDirectory, `invoice-${invoiceId}.pdf`); // Save in public/pdfs
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'load' });
 
-  // Generate and save the PDF
-  await page.pdf({ path: pdfPath, format: 'A4' });
+    // Ensure the PDF directory exists
+    if (!fs.existsSync(pdfDirectory)) {
+      fs.mkdirSync(pdfDirectory, { recursive: true });
+    }
 
-  await browser.close();
-  return pdfPath; // Return the path for further use
+    // Define the path to save the PDF
+    const pdfPath = path.join(pdfDirectory, `invoice-${invoiceId}.pdf`); // Save in public/pdfs
+
+    // Generate and save the PDF
+    await page.pdf({ path: pdfPath, format: 'A4' });
+
+    await browser.close();
+
+    console.log(`PDF successfully generated at ${pdfPath}`);
+    return pdfPath; // Return the path for further use
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    throw new Error('Failed to generate PDF');
+  }
 };
 
 exports.sendReminder = async (req, res) => {
@@ -2123,39 +2160,33 @@ exports.sendReminder = async (req, res) => {
 
     await newReminder.save();
 
+    console.log(`New reminder saved: ${JSON.stringify(newReminder)}`);
+
     // Schedule email based on allDay flag
     if (allDay) {
-      // Daily reminder at the specified time
+      console.log(`Scheduling daily reminder for ${email} at ${hour}:${minute}`);
       schedule.scheduleJob({ hour, minute }, async () => {
+        const updatedUser = await User.findById(userId);
         try {
-          await sendEmail({
-            from: process.env.MAIL_ID,
-            to: email,
-            subject: "Daily Reminder",
-            text: message,
-          });
-          // console.log(`Daily reminder sent to ${email}`);
+          console.log(`Sending daily reminder to ${email}`);
+          if(updatedUser.emailNotificationToggle){
+            await sendEmail({
+              from: process.env.MAIL_ID,
+              to: email,
+              subject: "Daily Reminder",
+              text: message,
+            });
+          }
+         
 
-          // Update sentDate after the email is sent
-          await Reminder.findByIdAndUpdate(
-            newReminder._id,
-            { sentDate: new Date() },
-            { new: true }
-          );
+          await Reminder.findByIdAndUpdate(newReminder._id, { sentDate: new Date() });
+          console.log(`Daily reminder sent to ${email}`);
         } catch (emailError) {
           console.error(`Error sending daily reminder to ${email}:`, emailError);
         }
       });
-
-      return res.json({
-        success: true,
-        message: "Daily reminder email scheduled and saved in the database.",
-        reminder: newReminder,
-      });
     } else {
-      // One-time reminder at the specified date and time
       const scheduledDate = new Date(dateTime);
-
       if (scheduledDate < new Date()) {
         return res.status(400).json({
           success: false,
@@ -2164,32 +2195,34 @@ exports.sendReminder = async (req, res) => {
       }
 
       schedule.scheduleJob(scheduledDate, async () => {
-        try {
-          await sendEmail({
-            from: process.env.MAIL_ID,
-            to: email,
-            subject: "One-time Reminder",
-            text: message,
-          });
-          // console.log(`One-time reminder sent to ${email}`);
+        const updatedUser = await User.findById(userId); 
+       
 
-          // Update sentDate after the email is sent
-          await Reminder.findByIdAndUpdate(
-            newReminder._id,
-            { sentDate: new Date() },
-            { new: true }
-          );
+        try {
+          console.log(`Sending one-time reminder to ${email} at ${scheduledDate}`);
+          if(updatedUser.emailNotificationToggle){
+            await sendEmail({
+              from: process.env.MAIL_ID,
+              to: email,
+              subject: "One-time Reminder",
+              text: message,
+            });
+          }
+          
+
+          await Reminder.findByIdAndUpdate(newReminder._id, { sentDate: new Date() });
+          console.log(`One-time reminder sent to ${email}`);
         } catch (emailError) {
-          // console.error(`Error sending one-time reminder to ${email}:`, emailError);
+          console.error(`Error sending one-time reminder to ${email}:`, emailError);
         }
       });
-
-      return res.json({
-        success: true,
-        message: "One-time reminder email scheduled and saved in the database.",
-        reminder: newReminder,
-      });
     }
+
+    return res.json({
+      success: true,
+      message: "Reminder email scheduled and saved in the database.",
+      reminder: newReminder,
+    });
   } catch (error) {
     console.error("Error scheduling reminder:", error);
     return res.status(500).json({
@@ -2273,8 +2306,100 @@ exports.deleteReminder = async (req, res) => {
 }
 }
 
+exports.getNotificationSettings = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
 
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "No token provided!",
+      });
+    }
 
+    // Verify the token and extract the userId
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.SECRET_KEY);
+    } catch (error) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or expired token!",
+      });
+    }
+
+    const userId = decoded.userId;
+      const user = await User.findById(userId, 'emailNotificationToggle');
+
+      if (!user) {
+          return res.status(404).json({ success: false, message: 'User not found.' });
+      }
+
+      res.status(200).json({
+          success: true,
+          notificationSettings: {
+              emailNotificationToggle: user.emailNotificationToggle,
+          },
+      });
+  } catch (error) {
+      console.error('Error fetching notification settings:', error);
+      res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+};
+
+exports.updateNotificationToggle = async (req, res) => {
+  try {
+    // Extract token from the Authorization header
+    const token = req.headers.authorization?.split(" ")[1];
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "No token provided!",
+      });
+    }
+
+    // Verify the token and extract the userId
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.SECRET_KEY);
+    } catch (error) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or expired token!",
+      });
+    }
+
+    const userId = decoded.userId;
+
+    // Find the user in the database
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found!",
+      });
+    }
+
+    // Toggle the emailNotificationToggle field
+    user.emailNotificationToggle = !user.emailNotificationToggle;
+
+    // Save the updated user
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: "Notification preference updated successfully!",
+      emailNotificationToggle: user.emailNotificationToggle,
+    });
+  } catch (error) {
+    console.error("Error updating notification preference:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update notification preference. Please try again later.",
+    });
+  }
+};
 
 
 async function sendEmail(mailOptions) {
@@ -2300,7 +2425,6 @@ async function sendEmail(mailOptions) {
     return false;
   }
 }
-
 
 exports.logout = async (req, res) => {
   try {

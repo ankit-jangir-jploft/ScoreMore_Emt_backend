@@ -70,6 +70,10 @@ const userSchema = new mongoose.Schema(
       ref: "Subscription",
       required: false,
     },
+    emailNotificationToggle: {
+      type: Boolean,
+      default: false, 
+    },
     isGuest: {
       type: Boolean,
       default: false, // This is to indicate if the user is a guest

@@ -149,6 +149,7 @@ exports.getDashboardData = async (req, res) => {
         const totalActiveUsers = await User.countDocuments({
             isActive: isActive,
             isBlocked : false,
+            isEmailVerified : true,
             role : "user",
             createdAt: { $gte: startsDate, $lte: endsDate }
         });
@@ -208,7 +209,8 @@ exports.getDashboardData = async (req, res) => {
             },
             {
                 $match: {
-                    'user.0': { $exists: true } // Ensure the user exists in the 'users' collection
+                    'user.0': { $exists: true }, // Ensure the user exists in the 'users' collection
+                    subscriptionStatus: 'active'
                 }
             },
             {
@@ -250,6 +252,7 @@ exports.getAllUsers = async (req, res) => {
             endsDate, 
             isActive, 
             isBlocked, 
+            isEmailVerified,
             subscriptionStatus, 
             search 
         } = req.query;
@@ -273,6 +276,9 @@ exports.getAllUsers = async (req, res) => {
         }
         if (isBlocked !== undefined) {
             query.isBlocked = isBlocked === 'true';
+        }
+        if (isEmailVerified !== undefined) {
+            query.isEmailVerified = isEmailVerified === 'true';
         }
         if (subscriptionStatus) {
             query.subscriptionStatus = subscriptionStatus;
