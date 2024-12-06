@@ -16,6 +16,8 @@ const connectDb = async () => {
         // v4 and local databse 
         await mongoose.connect("mongodb+srv://ankit:lttxHmOPl3hQ48Z5@cluster0.pnzca.mongodb.net/scoremore?retryWrites=true&w=majority");
         console.log("local Database connected successfully !!");
+
+
     } catch (err) {
         console.error("Database connection error:", err);
     }
