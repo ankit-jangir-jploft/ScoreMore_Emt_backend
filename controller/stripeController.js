@@ -5,6 +5,8 @@ require("dotenv").config();
 console.log("process.env.STRIPE_SECRET_KEY", process.env.STIPRE_SECRET_KEY);
 const stripe = require("stripe")(process.env.STIPRE_SECRET_KEY);
 
+const sgMail = require('@sendgrid/mail');
+
 exports.checkout = async (req, res) => {
     try {
         const { userId, priceId } = req.body;
@@ -78,6 +80,7 @@ exports.checkout = async (req, res) => {
             paymentMethod: 'card',
             subscriptionPlan: selectedSubscription.title,
             priceId : priceId,
+            orderId : await randomOrderId(),
             startedAt: new Date(),
             expiresAt: new Date(Date.now() + planDuration * 24 * 60 * 60 * 1000), // Set expiration date
         });
@@ -110,6 +113,18 @@ exports.checkout = async (req, res) => {
 };
 
 
+const randomOrderId = async function() {
+    // Generate a random number between 0 and 99999
+    const randomNumber = Math.floor(Math.random() * 100000);
+    
+    // Ensure it has 5 digits, padding with zeros if necessary
+    const formattedNumber = String(randomNumber).padStart(5, '0');
+    
+    // Prefix with 'sm'
+    return `ORDER-${formattedNumber}`;
+};
+
+
 
 exports.stripeSession = async (req, res) => {
     try {
@@ -126,7 +141,7 @@ exports.stripeSession = async (req, res) => {
 
         // Retrieve the latest subscription associated with the user
         const subscription = await Subscription.findOne({ userId }).sort({ createdAt: -1 });
-        // console.log("Subscription:", subscription);
+        console.log("Subscription:", subscription);
 
         if (!subscription) {
             return res.status(404).json({
@@ -137,7 +152,7 @@ exports.stripeSession = async (req, res) => {
 
         // Retrieve the checkout session using the transactionId from the subscription
         const session = await stripe.checkout.sessions.retrieve(subscription.transactionId);
-        // console.log("Session in Subscription:", session);
+        console.log("Session in Subscription:", session);
 
         // Check if session exists
         if (!session) {
@@ -147,6 +162,17 @@ exports.stripeSession = async (req, res) => {
             });
         }
 
+
+        const orderDate = new Date(subscription.createdAt).toLocaleString('en-US', {
+            timeZone: 'CST',
+            year: 'numeric',
+            month: 'short',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+
         // Update user if session status is complete
         if (session.status === "complete") {
             subscription.subscriptionStatus = "active";
@@ -154,7 +180,130 @@ exports.stripeSession = async (req, res) => {
 
             user.subscriptionStatus = "active";
             user.subscriptionId = subscription._id;
+           
             await user.save();
+
+
+            const mailOptions = {
+                from: process.env.MAIL_ID,
+                to: user.email,
+                subject: `Your ScoreMore purchase (#${subscription.orderId}) was successful`,
+                html: `
+                  <div style="font-family: Arial, sans-serif; width: 100%; max-width: 1000px; margin: 0 auto; border: 2px solid #08273f; border-radius: 10px; overflow: hidden;">
+              
+                    <!-- Header -->
+                    <div style="background-color: #08273f; color: #ffffff; text-align: center; padding: 20px;">
+                      <h1 style="margin: 0; font-size: 24px;">Thank you for your order!</h1>
+                    </div>
+              
+                    <!-- Body Content -->
+                    <div style="padding: 20px; line-height: 1.6;">
+                      <p>Hi ${user.firstName || "Customer"},</p>
+                      <p>We know you are excited about your test prep, and we can assure you that you made the right choice.</p>
+                      <p>Here's your confirmation for order number <strong>#${subscription.orderId}</strong>. Review your receipt and get started with your prep.</p>
+              
+                      <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                        <tr style="background-color: #f4f4f4;">
+                          <th style="text-align: left; padding: 10px; border: 1px solid #ddd;">Order Placed On</th>
+                          <td style="padding: 10px; border: 1px solid #ddd;">${orderDate}</td>
+                        </tr>
+                        <tr>
+                          <th style="text-align: left; padding: 10px; border: 1px solid #ddd;">Order Number</th>
+                          <td style="padding: 10px; border: 1px solid #ddd;">${subscription.orderId}</td>
+                        </tr>
+                      </table>
+              
+                      <h3 style="margin-top: 30px;">Subscription Details</h3>
+                      <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                        <thead>
+                          <tr style="background-color: #f4f4f4;">
+                            <th style="text-align: left; padding: 10px; border: 1px solid #ddd;">Subscription</th>
+                            <th style="text-align: left; padding: 10px; border: 1px solid #ddd;">Duration</th>
+                            <th style="text-align: left; padding: 10px; border: 1px solid #ddd;">Price</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td style="padding: 10px; border: 1px solid #ddd;">${subscription.subscriptionPlan}</td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">${subscription.startedAt.toDateString()} - ${subscription.expiresAt.toDateString()}</td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">$${subscription.paymentAmount} USD</td>
+                          </tr>
+                        </tbody>
+                      </table>
+              
+                      <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                        <tr style="background-color: #f4f4f4;">
+                          <th style="text-align: left; padding: 10px; border: 1px solid #ddd;">Total (USD)</th>
+                          <td style="padding: 10px; border: 1px solid #ddd;">$${subscription.paymentAmount} USD</td>
+                        </tr>
+                      </table>
+              
+                      <p style="margin-top: 30px;">What are you waiting for? Start your preparation now!</p>
+                      <a href="${process.env.VERIFY_REDIRECT_URL}/Dashboard" 
+                         style="background-color: #4CAF50; color: white; padding: 15px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; font-size: 16px; margin: 10px 0;">
+                         Let's Start
+                      </a>
+              
+                      <p style="margin-top: 20px;">You can now practice on the ScoreMore! </p>
+                      <p style="margin-top: 10px;"> Download our apps from Apple and Google Play Store to practice for your exam.</p>
+                    </div>
+              
+                    <!-- Footer -->
+                    <div style="background-color: #08273f; color: #ffffff; text-align: center; padding: 15px; line-height: 1.8;">
+                      <p style="margin: 0;">© 2024 ScoreMore LLC. All Rights Reserved.</p>
+                      <p style="margin: 0;">e-mail: <a href="mailto:scoremoreapp@gmail.com" style="color: #ffffff; text-decoration: none;">scoremoreapp@gmail.com</a> | Web: <a href="https://scoremoreprep.com" target="_blank" style="color: #ffffff; text-decoration: none;">https://scoremoreprep.com</a></p>
+                    </div>
+              
+                  </div>
+              
+                  <!-- Mobile Styles -->
+                  <style>
+                    @media only screen and (max-width: 600px) {
+                      .container {
+                        width: 100% !important;
+                        padding: 10px !important;
+                      }
+              
+                      h1 {
+                        font-size: 22px !important;
+                      }
+              
+                      h3 {
+                        font-size: 20px !important;
+                      }
+              
+                      table {
+                        width: 100% !important;
+                        font-size: 14px !important;
+                      }
+              
+                      th, td {
+                        padding: 8px !important;
+                      }
+              
+                      .cta-button {
+                        width: 100% !important;
+                        font-size: 16px !important;
+                        padding: 15px !important;
+                      }
+              
+                      p {
+                        font-size: 14px !important;
+                      }
+                    }
+                  </style>
+                `
+              };
+              
+              
+
+            const emailSent = await sendEmail(mailOptions);
+            if (!emailSent) {
+              return res.status(500).json({
+                message: "Failed to send verification email.",
+                success: false,
+              });
+            }
 
             // console.log("Subscription and user updated to active status");
         }
@@ -171,3 +320,28 @@ exports.stripeSession = async (req, res) => {
         });
     }
 };
+
+
+async function sendEmail(mailOptions) {
+    try {
+      // Set SendGrid API key
+      sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  
+      
+      const msg = {
+        to: mailOptions.to,       // Recipient email address
+        from: process.env.MAIL_ID, // Verified sender email address in SendGrid
+        subject: mailOptions.subject, // Subject of the email
+        text: mailOptions.text,    // Plain text content (optional)
+        html: mailOptions.html,    // HTML content (optional)
+      };
+  
+      // Send the email using SendGrid
+      const response = await sgMail.send(msg);
+      // console.log("Email sent successfully:", response);
+      return true;
+    } catch (error) {
+      console.error("Error sending email:", error.response?.body || error.message);
+      return false;
+    }
+  }

@@ -124,7 +124,10 @@ const SubscriptionSchema = new mongoose.Schema({
   priceId: {
     type: String, 
     required: true
-},
+  },
+  orderId : {
+    type: String, 
+  },
   startedAt: {
       type: Date,
       required: true,
