@@ -2,6 +2,7 @@ const Flashcard = require('../models/Flashcard'); // Adjust the path as necessar
 const path = require('path');
 const { UserFlashcard } = require('../models/User');
 const jwt = require("jsonwebtoken");
+const Subject = require('../models/Subject');
 
 
 
@@ -366,6 +367,16 @@ exports.getFlashcardById = async (req, res) => {
 //     }
 // };
 
+// Helper function to convert strings to camelCase
+function toCamelCase(str) {
+    return str
+        .replace(/(?:^\w|[A-Z]|\b\w|\s+)/g, (match, index) =>
+            index === 0 ? match.toLowerCase() : match.toUpperCase()
+        )
+        .replace(/\s+/g, '')
+        .replace(/[^a-zA-Z0-9]/g, ''); // Removing any special characters if present
+}
+
 exports.getRoadmapSubject = async (req, res) => {
     try {
         // Extract and verify token
@@ -392,8 +403,12 @@ exports.getRoadmapSubject = async (req, res) => {
         // Get all user submissions
         const userFlashcardSubmissions = await UserFlashcard.find({ userId });
 
+        // Fetch exact subject names from the Subject collection (in the correct order)
+        const subjectsFromDB = await Subject.find({}).select('name'); // Adjust the sort order if needed
+
         const subjectStatus = await Promise.all(
-            allFlashcards.map(async (subject) => {
+            subjectsFromDB.map(async (subjectFromDB) => {
+                const subject = subjectFromDB.name;
                 const flashcardsForSubject = await Flashcard.find({ subject });
                 const totalFlashcardsForSubject = flashcardsForSubject.length;
 
@@ -410,7 +425,7 @@ exports.getRoadmapSubject = async (req, res) => {
                     totalUserSubmissions > 0 || isCompleted || totalUserSubmissions < totalFlashcardsForSubject;
 
                 return {
-                    subject,
+                    subject: toCamelCase(subject) === "eMSOperations" ? "EMS Operations" : toCamelCase(subject), // Use camelCase for the subject name
                     isUnlocked,
                     isCompleted,
                     totalFlashcards: totalFlashcardsForSubject,
@@ -419,11 +434,12 @@ exports.getRoadmapSubject = async (req, res) => {
             })
         );
 
-        // Define custom order of subjects
-        const customOrder = ['medical', 'airway', 'cardiology', 'trauma', 'EMS Operations'];
-
-        // Sort the subjects based on the custom order
-        subjectStatus.sort((a, b) => customOrder.indexOf(a.subject) - customOrder.indexOf(b.subject));
+        // Sort the subjectStatus array to match the exact order from the subjectsFromDB
+        subjectStatus.sort((a, b) => {
+            const indexA = subjectsFromDB.findIndex(sub => sub.name === a.subject);
+            const indexB = subjectsFromDB.findIndex(sub => sub.name === b.subject);
+            return indexA - indexB;
+        });
 
         // Determine the current subject
         const currentSubject = subjectStatus.find(
@@ -444,6 +460,9 @@ exports.getRoadmapSubject = async (req, res) => {
         return res.status(500).json({ message: "Internal server error", success: false });
     }
 };
+
+
+
 
 
 
