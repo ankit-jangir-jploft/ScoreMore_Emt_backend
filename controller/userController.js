@@ -1410,26 +1410,20 @@ function toCamelCase(str) {
     .replace(/\s+/g, '');
 }
 
+
 exports.allExamRecord = async (req, res) => {
   try {
     // Extracting userId from the request body
     const { userId } = req.body;
-    // console.log("User ID:", userId);
-
-    // Check if the user has any question data
-    //  const userIdMatchCondition = mongoose.Types.ObjectId.isValid(userId)
-    //   ? new mongoose.Types.ObjectId(userId) 
-    //   : userId; // If not ObjectId, use as-is
 
     // Find user questions
     const userQuestions = await UserQuestionData.find({ userId }).populate('questionId');
-    // console.log("User Questions Found:", userQuestions);
 
     if (userQuestions.length === 0) {
       return res.status(200).json({
         success: true,
         message: "No question data found for this user.",
-        overallStats:[],
+        overallStats: [],
         subjectInsights: [],
       });
     }
@@ -1467,8 +1461,6 @@ exports.allExamRecord = async (req, res) => {
         },
       },
     ]);
-
-    // console.log("Overall Stats Result:", overallStats);
 
     // Aggregation pipeline for subject insights
     const subjectInsights = await UserQuestionData.aggregate([
@@ -1523,17 +1515,14 @@ exports.allExamRecord = async (req, res) => {
       },
     ]);
 
-    // console.log("Subject Insights Result:", subjectInsights);
+    // Fetch all subjects from the Subject model
+    const subjects = await Subject.find({}).select('name'); // Assuming "name" is the field for subject names
 
-    // Define the subjects you're interested in
-    const subjects = ["medical", "airway", "cardiology", "trauma", "emsOperations"];
-
-    // Format subject insights data to include all subjects
+    // Format subject insights data to include all subjects dynamically
     const subjectDataFormatted = subjects.map(subject => {
-      const insight = subjectInsights.find(i => i.subject === subject) || { correctAnswered: 0, totalAnswered: 0, percentage: 0 };
-      // console.log(`Subject: ${subject}, Insight:`, insight); // Debugging log
+      const insight = subjectInsights.find(i => i.subject === subject.name) || { correctAnswered: 0, totalAnswered: 0, percentage: 0 };
       return {
-        subject,
+        subject: subject.name,
         correctAnswered: insight.correctAnswered,
         totalAnswered: insight.totalAnswered,
         percentage: insight.percentage.toFixed(2), // Ensure two decimal places
