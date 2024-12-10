@@ -1513,7 +1513,7 @@ exports.allExamRecord = async (req, res) => {
       return res.status(200).json({
         success: true,
         message: "No question data found for this user.",
-        overallStats: [],
+        overallStats: { totalUniqueQuestions: 0, totalCorrectQuestions: 0, percentage: 0 },
         subjectInsights: [],
       });
     }
