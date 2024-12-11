@@ -116,8 +116,8 @@ const SubscriptionSchema = new mongoose.Schema({
   subscriptionId : {
     type : String
   },
-  platform: { type: String, required: true, enum: ["web", "android", "ios"] },
-  paymentStatus: { type: String, required: true, enum: ["success", "pending", "failed"] },
+  platform: { type: String,  enum: ["web", "android", "ios"] },
+  paymentStatus: { type: String,  enum: ["success", "pending", "failed"] },
   paymentMethod: {
       type: String,
       required: true
