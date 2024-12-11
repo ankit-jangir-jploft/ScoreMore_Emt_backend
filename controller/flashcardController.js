@@ -907,6 +907,7 @@ exports.getAllRoadmaps = async (req, res) => {
 
                 return {
                     subject: subject.name,
+                    subjectId : subject._id,
                     totalLevels: sortedLevels.length,
                     levels: sortedLevels.map((levelKey) => ({
                         level: levelKey,
