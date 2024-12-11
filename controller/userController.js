@@ -2170,7 +2170,6 @@ const generatePDFBuffer = async (html, invoiceId) => {
 
 exports.sendReminder = async (req, res) => {
   try {
-    // Extract token from the Authorization header
     const token = req.headers.authorization?.split(" ")[1];
 
     if (!token) {
@@ -2180,7 +2179,6 @@ exports.sendReminder = async (req, res) => {
       });
     }
 
-    // Verify the token and get the userId
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.SECRET_KEY);
@@ -2193,7 +2191,6 @@ exports.sendReminder = async (req, res) => {
 
     const userId = decoded.userId;
 
-    // Find user in the database
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({
@@ -2204,7 +2201,6 @@ exports.sendReminder = async (req, res) => {
 
     const email = user.email;
 
-    // Validate request body
     const { message, time, allDay, dateTime } = req.body;
     if (!message || (allDay && !time) || (!allDay && !dateTime)) {
       return res.status(400).json({
@@ -2213,7 +2209,6 @@ exports.sendReminder = async (req, res) => {
       });
     }
 
-    // Parse time into hours and minutes (handles AM/PM)
     const timeMatch = time.match(/^(\d+):(\d+)\s?(AM|PM)$/i);
     if (!timeMatch) {
       return res.status(400).json({
@@ -2228,7 +2223,6 @@ exports.sendReminder = async (req, res) => {
     if (meridian.toUpperCase() === "PM" && hour !== 12) hour += 12;
     if (meridian.toUpperCase() === "AM" && hour === 12) hour = 0;
 
-    // Save the new reminder in the database
     const newReminder = new Reminder({
       email,
       message,
@@ -2241,11 +2235,12 @@ exports.sendReminder = async (req, res) => {
 
     console.log(`New reminder saved: ${JSON.stringify(newReminder)}`);
 
-    // Schedule email based on allDay flag
     if (allDay) {
       console.log(`Scheduling daily reminder for ${email} at ${hour}:${minute}`);
-      schedule.scheduleJob({ hour, minute }, async () => {
+      const cronTime = { hour, minute, tz: 'Asia/Kolkata' }; 
+      schedule.scheduleJob({ cronTime}, async () => { 
         const updatedUser = await User.findById(userId);
+        console.log("updatedUser", updatedUser)
         try {
           console.log(`Sending daily reminder to ${email}`);
           if(updatedUser.emailNotificationToggle){
@@ -2313,7 +2308,7 @@ exports.sendReminder = async (req, res) => {
 
 exports.getUserReminders = async (req, res) => {
   try {
-    // Extract token from Authorization head
+    // Extract token from Authorization header
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) {
       return res.status(401).json({
@@ -2334,9 +2329,6 @@ exports.getUserReminders = async (req, res) => {
     }
 
     const userId = decoded.userId;
-    
-    await cleanupCompletedReminders();
-    // Fetch user from database
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({
@@ -2345,8 +2337,16 @@ exports.getUserReminders = async (req, res) => {
       });
     }
 
-    // Get all reminders associated with the user's email
+    await cleanupCompletedReminders();
     const reminders = await Reminder.find({ email: user.email });
+    const currentDate = new Date();
+    console.log("currentDate",currentDate)
+    const pastReminders = reminders.filter(reminder => new Date(reminder.dateTime) < currentDate);
+
+    console.log("pastReminders",pastReminders)
+    // if (pastReminders.length > 0) {
+      // Call the cleanup function to remove past reminders
+    // }
 
     if (reminders.length === 0) {
       return res.status(200).json({
@@ -2368,6 +2368,7 @@ exports.getUserReminders = async (req, res) => {
     });
   }
 };
+
 
 exports.deleteReminder = async (req, res) => {
   try {

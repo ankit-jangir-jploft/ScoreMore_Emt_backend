@@ -1,4 +1,4 @@
-const { User, Subscription } = require("../models/User");
+const { User, Subscription, updateSearchIndex } = require("../models/User");
 const axios = require('axios'); // Import axios for making API requests
 require("dotenv").config();
 
@@ -344,4 +344,42 @@ async function sendEmail(mailOptions) {
       console.error("Error sending email:", error.response?.body || error.message);
       return false;
     }
+  }
+
+
+  exports.saveSubscription = async () => {
+    const { subscriptionId, transactionId, payment_status, platform, userId } = req.body;
+
+  // Validate request body
+  if (!subscriptionId || !transactionId || !payment_status || !platform || !userId) {
+    return res.status(400).json({ message: "All fields are required." });
+  }
+
+  try {
+    // Check for existing active subscription
+    const existingSubscription = await Subscription.findOne({
+      userId,
+      payment_status: "success",
+    });
+
+    if (existingSubscription) {
+      return res.status(400).json({ message: "User already has an active subscription." });
+    }
+
+    // Create a new subscription document
+    const subscription = new Subscription({
+      subscriptionId,
+      transactionId,
+      payment_status,
+      platform,
+      userId,
+    });
+
+    // Save the subscription document to the database
+    await subscription.save();
+
+    res.status(201).json({ message: "Subscription saved successfully.", data: subscription });
+  } catch (error) {
+    res.status(500).json({ message: "Error saving subscription.", error: error.message });
+  }
   }
