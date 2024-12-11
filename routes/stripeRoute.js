@@ -5,6 +5,8 @@ const stripeController = require("../controller/stripeController")
 router.post('/checkout', stripeController.checkout);
 router.post('/checkPaymentstatus', stripeController.stripeSession);
 
+router.post("/saveSubscription", stripeController.saveSubscription)
+
 
 
 

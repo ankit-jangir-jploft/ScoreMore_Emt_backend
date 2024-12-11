@@ -113,6 +113,11 @@ const SubscriptionSchema = new mongoose.Schema({
       enum: ['pending', 'active', 'canceled'],
       default: 'pending'
   },
+  subscriptionId : {
+    type : String
+  },
+  platform: { type: String, required: true, enum: ["web", "android", "ios"] },
+  paymentStatus: { type: String, required: true, enum: ["success", "pending", "failed"] },
   paymentMethod: {
       type: String,
       required: true

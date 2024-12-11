@@ -409,13 +409,15 @@ exports.getRoadmapSubject = async (req, res) => {
         const subjectStatus = await Promise.all(
             subjectsFromDB.map(async (subjectFromDB) => {
                 const subject = subjectFromDB.name;
-                const flashcardsForSubject = await Flashcard.find({ subject });
+                const flashcardsForSubject = await Flashcard.find({ subject : subject === "EMS Operations" ? "EMS Operations" : toCamelCase(subject) });
                 const totalFlashcardsForSubject = flashcardsForSubject.length;
 
                 // User submissions for the subject
-                const userSubmissionsForSubject = userFlashcardSubmissions.filter(
-                    (submission) => submission.subject === subject
-                );
+                const userSubmissionsForSubject = userFlashcardSubmissions.filter((submission) => {
+                    const formattedSubject = subject === "EMS Operations" ? "EMS Operations" : toCamelCase(subject || "");
+                    return submission.subject?.toLowerCase() === formattedSubject.toLowerCase();
+                });
+                
                 const totalUserSubmissions = userSubmissionsForSubject.length;
 
                 // Determine completion and unlock status
