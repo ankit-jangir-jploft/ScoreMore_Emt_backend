@@ -16,10 +16,6 @@ exports.addFlashcard = async (req, res) => {
             }
         });
 
-        // Log incoming request details
-        // console.log("Incoming Request Body (trimmed):", req.body); 
-        // console.log("Uploaded File Details:", req.file); 
-
         const { question, explanation, subject, level, hint, subtitle } = req.body;
 
         if (!question || !explanation || !subject || !level  || !hint) {
@@ -30,24 +26,31 @@ exports.addFlashcard = async (req, res) => {
             });
         }
 
+        // Fetch the subjectId from the Subject collection
+        const subjectData = await Subject.findOne({ name: subject });
+        if (!subjectData) {
+            console.error("Subject not found"); 
+            return res.status(400).json({
+                message: "Subject not found. Please ensure the subject exists.",
+                success: false
+            });
+        }
+
+        const subjectId = subjectData._id;
+
         // Convert level to an integer for comparison
         const newLevel = parseInt(level, 10);
-        // console.log("Parsed Level:", newLevel); // Log the parsed level
 
         // Check for existing flashcards with the same subject
         const existingFlashcards = await Flashcard.find({ subject });
-        // console.log("Existing Flashcards Found:", existingFlashcards.length); // Log the number of existing flashcards
-
+        
         if (existingFlashcards.length > 0) {
             const existingLevels = existingFlashcards.map(fc => fc.level).sort((a, b) => a - b);
-            const maxLevel = parseInt(existingLevels[existingLevels.length - 1], 10); // Convert maxLevel to an integer
-
-            // console.log("Existing Levels:", existingLevels); // Log existing levels
-            // console.log("Max Existing Level:",typeof maxLevel); // Log max existing level
+            const maxLevel = parseInt(existingLevels[existingLevels.length - 1], 10);
 
             // Check if the new level is valid
             if (newLevel > maxLevel + 1) {
-                console.error(`Gap Error: Attempting to add level ${newLevel} with max level ${maxLevel}.`); // Log the gap error
+                console.error(`Gap Error: Attempting to add level ${newLevel} with max level ${maxLevel}.`);
                 return res.status(400).json({
                     message: `In this subject, the last level is ${maxLevel}. You cannot add level ${newLevel} directly. Please add level ${maxLevel + 1} first.`,
                     success: false
@@ -56,9 +59,8 @@ exports.addFlashcard = async (req, res) => {
 
             // If adding a new level, check for subtitle requirement
             if (newLevel === maxLevel + 1) {
-                // Check if a subtitle is provided
                 if (!subtitle) {
-                    console.error("Subtitle Requirement Error: Missing subtitle for new level."); // Log the subtitle error
+                    console.error("Subtitle Requirement Error: Missing subtitle for new level.");
                     return res.status(400).json({
                         message: "Subtitle is required for the new level.",
                         success: false
@@ -70,11 +72,9 @@ exports.addFlashcard = async (req, res) => {
         // Extract the image file if uploaded
         let profilePicture;
         if (req.file) {
-            // Get just the filename (not the full path)
             profilePicture = path.basename(req.file.path);
-            // console.log("Profile Picture Filename:", profilePicture); // Log the profile picture filename
         } else {
-            console.error("File Upload Error: Profile picture is required."); // Log the file error
+            console.error("File Upload Error: Profile picture is required.");
             return res.status(400).json({
                 message: "Profile picture is required.",
                 success: false
@@ -83,18 +83,18 @@ exports.addFlashcard = async (req, res) => {
 
         // Create a new Flashcard document
         const flashcard = new Flashcard({
-            profilePicture, // Save the image filename
+            profilePicture, 
             question,
             explanation,
             subject,
+            subjectId, // Add subjectId
             hint,
             level: newLevel,
-            subtitle // Add the subtitle field
+            subtitle
         });
 
         // Save the flashcard to the database
         const savedFlashcard = await flashcard.save();
-        // console.log("Flashcard Saved Successfully:", savedFlashcard); // Log the saved flashcard data
 
         return res.status(201).json({
             message: "Flashcard created successfully",
@@ -102,16 +102,13 @@ exports.addFlashcard = async (req, res) => {
             data: savedFlashcard
         });
     } catch (err) {
-        console.error("Error adding flashcard:", err); // Log any errors
+        console.error("Error adding flashcard:", err);
         return res.status(500).json({ message: "Internal server error", success: false });
     }
 };
 
 exports.updateFlashcard = async (req, res) => {
     try {
-        // console.log("req.body", req.body);
-        // console.log("req.file", req.file);
-
         const { id } = req.params;
         const { question, explanation, subject, level, hint, subtitle } = req.body;
 
@@ -124,10 +121,22 @@ exports.updateFlashcard = async (req, res) => {
             });
         }
 
-        // Update fields if they are provided in the request
+        // Fetch the subjectId from the Subject model if the subject is provided
+        if (subject) {
+            const subjectData = await Subject.findOne({ name: subject });
+            if (!subjectData) {
+                return res.status(400).json({
+                    message: "Subject not found. Please ensure the subject exists.",
+                    success: false
+                });
+            }
+            flashcard.subjectId = subjectData._id;  // Save the subjectId
+            flashcard.subject = subject;  // Update the subject name (if needed)
+        }
+
+        // Update other fields if they are provided in the request
         if (question) flashcard.question = question;
         if (explanation) flashcard.explanation = explanation;
-        if (subject) flashcard.subject = subject;
         if (level) flashcard.level = level;
         if (hint) flashcard.hint = hint;
         if (subtitle) flashcard.subtitle = subtitle;
@@ -139,7 +148,7 @@ exports.updateFlashcard = async (req, res) => {
         }
 
         // Save the updated flashcard to the database
-        flashcard.updatedAt = Date.now(); // Update the timestamp
+        flashcard.updatedAt = Date.now();  // Update the timestamp
         await flashcard.save();
 
         return res.status(200).json({
@@ -409,7 +418,8 @@ exports.getRoadmapSubject = async (req, res) => {
         const subjectStatus = await Promise.all(
             subjectsFromDB.map(async (subjectFromDB) => {
                 const subject = subjectFromDB.name;
-                const flashcardsForSubject = await Flashcard.find({ subject : subject === "EMS Operations" ? "EMS Operations" : toCamelCase(subject) });
+                const subjectId = subjectFromDB._id;
+                const flashcardsForSubject = await Flashcard.find({ subject : subject  });
                 const totalFlashcardsForSubject = flashcardsForSubject.length;
 
                 // User submissions for the subject
@@ -428,6 +438,7 @@ exports.getRoadmapSubject = async (req, res) => {
 
                 return {
                     subject: toCamelCase(subject) === "eMSOperations" ? "EMS Operations" : toCamelCase(subject), // Use camelCase for the subject name
+                    subjectId : subjectId,
                     isUnlocked,
                     isCompleted,
                     totalFlashcards: totalFlashcardsForSubject,
@@ -481,10 +492,10 @@ exports.getRoadmap = async (req, res) => {
         const decoded = jwt.verify(token, process.env.SECRET_KEY);
         const userId = decoded.userId;
 
-        const { subject } = req.body;
+        const { subjectId } = req.body;
 
         // Find all flashcards related to the subject
-        const findAllFlashcard = await Flashcard.find({ subject });
+        const findAllFlashcard = await Flashcard.find({ subjectId : subjectId });
         if (findAllFlashcard.length === 0) {
             return res.status(404).json({
                 success: false,
@@ -493,7 +504,7 @@ exports.getRoadmap = async (req, res) => {
         }
 
         // Find user's submitted flashcards for the specific subject
-        const userFlashcardData = await UserFlashcard.find({ userId, subject });
+        const userFlashcardData = await UserFlashcard.find({ userId, subjectId });
         // console.log("userAllsubmittedFlashcard", userFlashcardData);
 
         const levels = {};
@@ -562,7 +573,7 @@ exports.getRoadmap = async (req, res) => {
 
         // Prepare the response
         const response = {
-            subject,
+            subject : findAllFlashcard.subject,
             totalLevels: sortedLevelKeys.length,
             levels: sortedLevelKeys.map(levelKey => ({
                 level: levelKey,
@@ -730,13 +741,13 @@ exports.getAllFlashCardDataInLevel = async (req, res) => {
         const decoded = jwt.verify(token, process.env.SECRET_KEY);
         const userId = decoded.userId;
 
-        const { level, flashcardLevelName, subject, cardsLength, bookmarked } = req.body;
+        const { level, flashcardLevelName, subjectId, cardsLength, bookmarked } = req.body;
 
         // Find all flashcards for the given level and subject
-        const findFlashcardInLevel = await Flashcard.find({ level, subject });
+        const findFlashcardInLevel = await Flashcard.find({ level, subjectId });
 
         // Find all flashcards submitted by the user
-        const getUserSubmittedFlashcard = await UserFlashcard.find({ userId, subject, level });
+        const getUserSubmittedFlashcard = await UserFlashcard.find({ userId, subjectId, level });
 
         if (findFlashcardInLevel.length === 0) {
             return res.status(404).json({ message: 'No flashcards found for this level and subject.' });
@@ -773,13 +784,17 @@ exports.getAllFlashCardDataInLevel = async (req, res) => {
             finalFlashcards = finalFlashcards.concat(shuffledUsedFlashcards.slice(0, remainingNeeded));
         }
 
+        const subjectName = await Subject.findById(subjectId);
+
+        console.log("subjectName",subjectName)
+
         // Create the response data
         const responseData = {
             level: level,
             noOfFlashcard: finalFlashcards.length,
             totalFlashCards: findFlashcardInLevel.length,
             submittedFlashcards: getUserSubmittedFlashcard.length,
-            flashcardSubject: subject,
+            flashcardSubject: subjectName.name,
             flashcardLevelName: flashcardLevelName,
             flashcards: finalFlashcards.map(flashcard => {
                 const isMarked = submittedFlashcardMap.get(flashcard._id.toString()) || false;
@@ -928,8 +943,9 @@ exports.submitFlashcard = async (req, res) => {
                 isRead: true,
                 isMarked : isMarked,
                 lastReadAt: new Date(),
-                subject: flashCard.subject, // Set the subject from flashcard
-                level: flashCard.level // Set the level from flashcard
+                subject: flashCard.subject,
+                subjectId: flashCard.subjectId, 
+                level: flashCard.level 
             });
             await userFlashcard.save();
             // console.log("New userFlashcard created:", userFlashcard);
