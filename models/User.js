@@ -214,6 +214,11 @@ const userFlashcardSchema = new mongoose.Schema({
     type: String, // e.g., "medical"
     required: true
   },
+  subjectId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true,
+    ref: "Subject",
+  },
   level: {
     type: Number, // e.g., 1 to 10
     required: true
