@@ -1654,8 +1654,8 @@ exports.getSubscriptionDetails = async (req, res) => {
     // Find the user in the database by ID
     const user = await User.findById(id);
     if (!user) {
-      return res.status(404).json({
-        success: false,
+      return res.status(200).json({
+        success: true,
         message: "User not found",
       });
     }
