@@ -44,7 +44,7 @@ exports.checkout = async (req, res) => {
             const expiresAt = new Date(existingSubscription.expiresAt);
             const remainingDays = Math.ceil((expiresAt - currentDate) / (1000 * 60 * 60 * 24)); 
 
-            if (remainingDays > 0 && existingSubscription.subscriptionStatus === "active") {
+            if (expiresAt > currentDate && remainingDays > 0 && existingSubscription.subscriptionStatus === "active") {
                 return res.status(400).json({
                     success: false,
                     message: `You already have an active subscription. Days remaining: ${remainingDays}`
@@ -111,20 +111,6 @@ exports.checkout = async (req, res) => {
         });
     }
 };
-
-
-const randomOrderId = async function() {
-    // Generate a random number between 0 and 99999
-    const randomNumber = Math.floor(Math.random() * 100000);
-    
-    // Ensure it has 5 digits, padding with zeros if necessary
-    const formattedNumber = String(randomNumber).padStart(5, '0');
-    
-    // Prefix with 'sm'
-    return `ORDER-${formattedNumber}`;
-};
-
-
 
 exports.stripeSession = async (req, res) => {
     try {
@@ -293,7 +279,7 @@ exports.stripeSession = async (req, res) => {
                     }
                   </style>
                 `
-              };
+            };
               
               
 
@@ -321,6 +307,16 @@ exports.stripeSession = async (req, res) => {
     }
 };
 
+const randomOrderId = async function() {
+  // Generate a random number between 0 and 99999
+  const randomNumber = Math.floor(Math.random() * 100000);
+  
+  // Ensure it has 5 digits, padding with zeros if necessary
+  const formattedNumber = String(randomNumber).padStart(5, '0');
+  
+  // Prefix with 'sm'
+  return `ORDER-${formattedNumber}`;
+};
 
 async function sendEmail(mailOptions) {
     try {
@@ -347,39 +343,56 @@ async function sendEmail(mailOptions) {
   }
 
 
-  exports.saveSubscription = async () => {
-    const { subscriptionId, transactionId, payment_status, platform, userId } = req.body;
+  exports.saveSubscription = async (req, res) => {
+    const { subscriptionId, transactionId, paymentStatus, platform, userId, expiresAt } = req.body;
 
-  // Validate request body
-  if (!subscriptionId || !transactionId || !payment_status || !platform || !userId) {
-    return res.status(400).json({ message: "All fields are required." });
-  }
-
-  try {
-    // Check for existing active subscription
-    const existingSubscription = await Subscription.findOne({
-      userId,
-      payment_status: "success",
-    });
-
-    if (existingSubscription) {
-      return res.status(400).json({ message: "User already has an active subscription." });
+    // Validate request body
+    if (!subscriptionId || !transactionId || !paymentStatus || !platform || !userId || !expiresAt) {
+        return res.status(400).json({ message: "All fields are required, including expiration date." });
     }
 
-    // Create a new subscription document
-    const subscription = new Subscription({
-      subscriptionId,
-      transactionId,
-      payment_status,
-      platform,
-      userId,
-    });
+    try {
+        // Step 1: Check and update expired subscriptions
+        const existingSubscriptions = await Subscription.find({ userId });
 
-    // Save the subscription document to the database
-    await subscription.save();
+        const currentDate = new Date();
+        for (const existingSubscription of existingSubscriptions) {
+            if (
+                new Date(existingSubscription.expiresAt) <= currentDate &&
+                existingSubscription?.paymentStatus === "success" &&
+                existingSubscription.subscriptionStatus !== "expired"
+            ) {
+                existingSubscription.subscriptionStatus = "expired";
+                await existingSubscription.save();
+            }
+        }
 
-    res.status(201).json({ message: "Subscription saved successfully.", data: subscription });
-  } catch (error) {
-    res.status(500).json({ message: "Error saving subscription.", error: error.message });
-  }
-  }
+        // Step 2: Check if there is any active subscription
+        const activeSubscription = existingSubscriptions.find(
+            (sub) => sub.paymentStatus === "success" && sub.subscriptionStatus === "active"
+        );
+
+        if (activeSubscription) {
+            return res.status(400).json({ message: "User already has an active subscription." });
+        }
+
+        // Step 3: Create a new subscription document
+        const subscription = new Subscription({
+            subscriptionId,
+            transactionId,
+            paymentStatus,
+            platform,
+            userId,
+            subscriptionStatus: paymentStatus === "success" ? "active" : "pending",
+            expiresAt: new Date(expiresAt),
+        });
+
+        // Save the subscription document to the database
+        await subscription.save();
+
+        res.status(201).json({ message: "Subscription saved successfully.", data: subscription });
+    } catch (error) {
+        console.error("Error saving subscription:", error);
+        res.status(500).json({ message: "Error saving subscription.", error: error.message });
+    }
+};
