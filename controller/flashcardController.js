@@ -110,7 +110,7 @@ exports.addFlashcard = async (req, res) => {
 exports.updateFlashcard = async (req, res) => {
     try {
         const { id } = req.params;
-        const { question, explanation, subject, level, hint, subtitle } = req.body;
+        const { question, explanation, subject, subjectId, level, hint, subtitle } = req.body;
 
         // Find the flashcard by ID
         const flashcard = await Flashcard.findById(id);
@@ -120,10 +120,14 @@ exports.updateFlashcard = async (req, res) => {
                 success: false
             });
         }
+        console.log("flashcard by id",flashcard);
+
+        const flashcarddata = await Flashcard.findOne({subjectId : subjectId, level : level});
+        console.log("flashcarddata",flashcarddata)
 
         // Fetch the subjectId from the Subject model if the subject is provided
         if (subject) {
-            const subjectData = await Subject.findOne({ name: subject });
+            const subjectData = await Subject.find({ name: subject });
             if (!subjectData) {
                 return res.status(400).json({
                     message: "Subject not found. Please ensure the subject exists.",
@@ -131,7 +135,7 @@ exports.updateFlashcard = async (req, res) => {
                 });
             }
             flashcard.subjectId = subjectData._id;  // Save the subjectId
-            flashcard.subject = subject;  // Update the subject name (if needed)
+            flashcard.subject = flashcarddata.subject;  // Update the subject name (if needed)
         }
 
         // Update other fields if they are provided in the request
@@ -140,6 +144,7 @@ exports.updateFlashcard = async (req, res) => {
         if (level) flashcard.level = level;
         if (hint) flashcard.hint = hint;
         if (subtitle) flashcard.subtitle = subtitle;
+        if (subjectId) flashcard.subjectId = subjectId;
 
         // If a new profile picture is uploaded, update the image path
         if (req.file) {
@@ -150,6 +155,8 @@ exports.updateFlashcard = async (req, res) => {
         // Save the updated flashcard to the database
         flashcard.updatedAt = Date.now();  // Update the timestamp
         await flashcard.save();
+
+        console.log("flascard after update ", flashcard)
 
         return res.status(200).json({
             message: "Flashcard updated successfully",
@@ -187,12 +194,12 @@ exports.deleteFlashcard = async (req, res) => {
         // console.log("count in level", count);
 
         // Check if there's more than one flashcard for the same subject and level
-        // if (count <= 1) {
-        //     return res.status(400).json({
-        //         message: `There is only one flashcard in subject "${subject}" and level ${level}. You cannot delete the last flashcard from this level.`,
-        //         success: false
-        //     });
-        // }
+        if (count <= 1) {
+            return res.status(400).json({
+                message: `There is only one flashcard in subject "${subject}" and level ${level}. You cannot delete the last flashcard from this level.`,
+                success: false
+            });
+        }
 
         // Proceed to delete the flashcard
         await Flashcard.findByIdAndDelete(id);
@@ -254,29 +261,47 @@ exports.getAllFlashcards = async (req, res) => {
 
 exports.getFlashcardById = async (req, res) => {
     try {
-        const {id} = req.params;
-        const flashcard = await Flashcard.findById(id);
-        if(!flashcard) {
-            res.status(404).json({
-                success: false,
-                message : "flashcard not found"
-            })
-        };
+        const { id } = req.params;
 
+        // Find the flashcard by ID
+        const flashcard = await Flashcard.findById(id);
+        if (!flashcard) {
+            return res.status(404).json({
+                success: false,
+                message: "Flashcard not found",
+            });
+        }
+
+        // Extract the subject and level from the flashcard
+        const flashCardSubject = flashcard.subject;
+        const flashCardLevel = flashcard.level;
+
+        // Count the total number of flashcards with the same subject and level
+        const totalFlashcardInlevel = await Flashcard.countDocuments({
+            subject: flashCardSubject,
+            level: flashCardLevel,
+        });
+
+        console.log("totalFlashcardInlevel", totalFlashcardInlevel);
+
+        // Respond with the flashcard data and the count
         res.status(200).json({
-            success : true,
-            message : "Flashcard found successfully",
-            data : flashcard
-        })
-        
+            success: true,
+            message: "Flashcard found successfully",
+            data: {
+                flashcard,
+                totalFlashcardInlevel, // Include the total count in the response
+            },
+        });
     } catch (error) {
-        console.log("error", error);
+        console.error("error", error);
         res.status(500).json({
-            message : "Internal server error",
-            success : false
-        })
+            message: "Internal server error",
+            success: false,
+        });
     }
-}
+};
+
   
 
 // apis for flashcards yo
@@ -437,7 +462,7 @@ exports.getRoadmapSubject = async (req, res) => {
                     totalUserSubmissions > 0 || isCompleted || totalUserSubmissions < totalFlashcardsForSubject;
 
                 return {
-                    subject: toCamelCase(subject) === "eMSOperations" ? "EMS Operations" : toCamelCase(subject), // Use camelCase for the subject name
+                    subject: subject, // Use camelCase for the subject name
                     subjectId : subjectId,
                     isUnlocked,
                     isCompleted,

@@ -1,14 +1,12 @@
-
 const Question = require("../models/question");
 const bcrypt = require("bcrypt");
 require("dotenv").config();
-
 const sgMail = require('@sendgrid/mail');
 const jwt = require("jsonwebtoken");
 const nodeMailer = require("nodemailer");
 const crypto = require("crypto");
 const path = require('path');
-const { default: mongoose } = require("mongoose");
+const { default: mongoose, trusted } = require("mongoose");
 const FilteredQuestion = require("../models/FilterQuestionTestData");
 const UserStrike = require("../models/StrikeCount");
 const ejs = require("ejs");
@@ -19,13 +17,12 @@ const Contact = require("../models/Contact");
 const Reminder = require("../models/Reminder");
 const { cleanupCompletedReminders } = require("../utils/CleanUpReminders");
 const puppeteer = require('puppeteer');
-
+const SubscriptionSchema = require("../models/StripeModels")
 // Adjust the paths as per your project structure
 const templatePath = path.join(__dirname, '..', 'views', 'templates', 'transactionInvoice.ejs');
 const pdfDirectory = path.join(__dirname, '..', 'public', 'pdfs');
 const publicDirectory = path.join(__dirname, '..', 'public');
-
-
+const cron = require("node-cron");
 const { User, UserQuestionData, Subscription, UserRating } = require("../models/User");
 const TestResult = require('../models/TestResult');
 const Subject = require("../models/Subject");
@@ -40,7 +37,7 @@ async function updateGuestReferences(oldUserId, newUserId) {
       { $set: { userId: newUserId } } // Set new user ID
     );
 
- 
+
 
     // Update the `userId` in the `TestResult` model
     await TestResult.updateMany(
@@ -189,7 +186,7 @@ exports.signup = async (req, res) => {
         </style>
       `,
     };
-    
+
 
     const emailSent = await sendEmail(mailOptions);
     if (!emailSent) {
@@ -235,6 +232,7 @@ exports.verifyEmail = async (req, res) => {
 };
 
 //  sign in with password and otp
+
 exports.signInWithPassword = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -442,7 +440,7 @@ exports.signInWithOTP = async (req, res) => {
         </style>
       `,
     };
-    
+
     // console.log("Mail options:", mailOptions);
 
     // Send OTP via email
@@ -550,7 +548,133 @@ exports.verifyOTP = async (req, res) => {
   }
 };
 
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email, alternateEmail } = req.body;
+
+    // Validate input
+    if (!email) {
+      return res.status(400).json({
+        message: "Primary email is required!",
+        success: false,
+      });
+    }
+
+    // Find the user by primary email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found!",
+        success: false,
+      });
+    }
+
+
+    if (user.isBlocked) {
+      return res.status(403).json({
+        message: "You are blocked by admin please contact support team !!",
+        success: false,
+      });
+    }
+
+    // Determine the email to send OTP to
+    const targetEmail = alternateEmail || email;
+
+    // Check if alternate email is valid and different from primary (optional)
+    if (alternateEmail && alternateEmail === email) {
+      return res.status(400).json({
+        message: "Alternate email should be different from the primary email.",
+        success: false,
+      });
+    }
+
+    // Generate OTP
+    const otp = crypto.randomInt(100000, 999999).toString(); // 6-digit OTP
+    const otpExpiration = Date.now() + 15 * 60 * 1000; // 15 minutes from now
+
+    // Store OTP and its expiration time in the user's document
+    user.otp = otp;
+    user.otpExpiration = otpExpiration;
+    await user.save();
+
+    // Prepare email options
+    const mailOptions = {
+      from: process.env.MAIL_ID,
+      to: targetEmail,
+      subject: "Password Reset OTP",
+      text: `Your OTP for password reset is ${otp}. It is valid for 15 minutes.`,
+    };
+
+    // Send OTP via email
+    const emailSent = await sendEmail(mailOptions);
+    if (!emailSent) {
+      return res.status(500).json({
+        message: "Failed to send OTP email.",
+        success: false,
+      });
+    }
+
+    return res.status(200).json({
+      message: `OTP sent to ${targetEmail}!`,
+      success: true,
+    });
+  } catch (err) {
+    console.log("Error in sending OTP for password reset", err);
+    return res.status(500).json({
+      message: "Internal server error",
+      success: false,
+    });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    // console.log("req.body", req.body)
+    const { otp, newPassword, email } = req.body;
+    // Validate input
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({
+        message: "User ID, OTP, and new password are required!",
+        success: false,
+      });
+    }
+    // Find the user by userId
+    const user = await User.findOne({ email });
+
+    if (!user || user.otp !== otp) {
+      return res.status(400).json({
+        message: "Invalid OTP!",
+        success: false,
+      });
+    }
+    // Check if the OTP is expired
+    if (Date.now() > user.otpExpiration) {
+      return res.status(400).json({
+        message: "OTP has expired!",
+        success: false,
+      });
+    }
+    // Hash the new password
+    const hashPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashPassword; // Update the password
+    user.otp = undefined; // Clear OTP
+    user.otpExpiration = undefined; // Clear expiration
+    await user.save();
+    return res.status(200).json({
+      message: "Password has been reset successfully!",
+      success: true,
+    });
+  } catch (err) {
+    console.log("Error in resetting password", err);
+    return res.status(500).json({
+      message: "Internal server error",
+      success: false,
+    });
+  }
+};
+
 // social login 
+
 exports.socialLogin = async (req, res) => {
   try {
     // console.log("re.bosd", req.body);
@@ -559,7 +683,7 @@ exports.socialLogin = async (req, res) => {
     // Check if the user exists with the given email
     let user = await User.findOne({ email });
     // console.log("user", user)
-      
+
     // If user exists
     if (user) {
       // Check if the user is blocked
@@ -645,141 +769,9 @@ exports.socialLogin = async (req, res) => {
   }
 };
 
-exports.forgotPassword = async (req, res) => {
-  try {
-    const { email, alternateEmail } = req.body;
-
-    // Validate input
-    if (!email) {
-      return res.status(400).json({
-        message: "Primary email is required!",
-        success: false,
-      });
-    }
-
-    // Find the user by primary email
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({
-        message: "User not found!",
-        success: false,
-      });
-    }
-
-
-    if (user.isBlocked) {
-      return res.status(403).json({
-        message: "You are blocked by admin please contact support team !!",
-        success: false,
-      });
-    }
-
-    // Determine the email to send OTP to
-    const targetEmail = alternateEmail || email;
-
-    // Check if alternate email is valid and different from primary (optional)
-    if (alternateEmail && alternateEmail === email) {
-      return res.status(400).json({
-        message: "Alternate email should be different from the primary email.",
-        success: false,
-      });
-    }
-
-    // Generate OTP
-    const otp = crypto.randomInt(100000, 999999).toString(); // 6-digit OTP
-    const otpExpiration = Date.now() + 15 * 60 * 1000; // 15 minutes from now
-
-    // Store OTP and its expiration time in the user's document
-    user.otp = otp;
-    user.otpExpiration = otpExpiration;
-    await user.save();
-
-    // Prepare email options
-    const mailOptions = {
-      from: process.env.MAIL_ID,
-      to: targetEmail,
-      subject: "Password Reset OTP",
-      text: `Your OTP for password reset is ${otp}. It is valid for 15 minutes.`,
-    };
-
-    // Send OTP via email
-    const emailSent = await sendEmail(mailOptions);
-    if (!emailSent) {
-      return res.status(500).json({
-        message: "Failed to send OTP email.",
-        success: false,
-      });
-    }
-
-    return res.status(200).json({
-      message: `OTP sent to ${targetEmail}!`,
-      success: true,
-    });
-  } catch (err) {
-    console.log("Error in sending OTP for password reset", err);
-    return res.status(500).json({
-      message: "Internal server error",
-      success: false,
-    });
-  }
-};
-
-exports.resetPassword = async (req, res) => {
-  try {
-    // console.log("req.body", req.body)
-    const { otp, newPassword, email } = req.body;
-
-    // console.log("req.otp", otp, newPassword,email )
-
-    // Validate input
-    if (!email || !otp || !newPassword) {
-      return res.status(400).json({
-        message: "User ID, OTP, and new password are required!",
-        success: false,
-      });
-    }
-
-    // Find the user by userId
-    const user = await User.findOne({ email });
-
-    if (!user || user.otp !== otp) {
-      return res.status(400).json({
-        message: "Invalid OTP!",
-        success: false,
-      });
-    }
-
-    // Check if the OTP is expired
-    if (Date.now() > user.otpExpiration) {
-      return res.status(400).json({
-        message: "OTP has expired!",
-        success: false,
-      });
-    }
-
-    // Hash the new password
-    const hashPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashPassword; // Update the password
-    user.otp = undefined; // Clear OTP
-    user.otpExpiration = undefined; // Clear expiration
-    await user.save();
-
-    return res.status(200).json({
-      message: "Password has been reset successfully!",
-      success: true,
-    });
-  } catch (err) {
-    console.log("Error in resetting password", err);
-    return res.status(500).json({
-      message: "Internal server error",
-      success: false,
-    });
-  }
-};
-
 exports.updateUserStatus = async (req, res) => {
   try {
-    const { _id } = req.user; 
+    const { _id } = req.user;
     const { isActive, isVerified } = req.body;
 
     const user = await User.findById(_id);
@@ -812,116 +804,7 @@ exports.updateUserStatus = async (req, res) => {
     });
   }
 };
-
-
-
-
-// exports.myProfile = async (req, res) => {
-//   try {
-//     // Extract token from the Authorization header
-//     const token = req.headers.authorization?.split(" ")[1];
-//     console.log("Token in myProfile:", token);
-
-//     if (!token) {
-//       return res.status(401).json({
-//         message: "No token provided!",
-//         success: false,
-//       });
-//     }
-
-//     // Verify the token
-//     const decoded = jwt.verify(token, process.env.SECRET_KEY);
-//     const userId = decoded.userId; // Assuming userId is stored in the token
-
-//     // Log the user ID
-//     console.log("Decoded User ID:", userId);
-
-//     // Extract filters from req.body
-//     const { dateRange, testType, newTestResult } = req.body; // Assuming newTestResult is passed in the request body
-//     console.log("DateRange:", dateRange, "TestType:", testType);
-
-//     // Find the user profile without aggregation
-//     const user = await User.findById(userId).select('-password -otp -otpExpiration');
-//     if (!user) {
-//       return res.status(404).json({
-//         message: "User not found",
-//         success: false,
-//       });
-//     }
-
-//     // Find the user's test results
-//     let testResults = await TestResult.find({ userId: userId }).lean();
-//     console.log("Initial Test Results:", testResults); // Log initial test results
-
-//     // Prepend the new test result to the testResults array if it exists
-//     if (newTestResult) {
-//       // Assuming newTestResult has the same structure as a TestResult
-//       testResults = [newTestResult, ...testResults];
-//       console.log("Test Results after adding new test at the beginning:", testResults);
-//     }
-
-//     // Filter test results by date range if provided
-//     if (dateRange?.from && dateRange?.to) {
-//       const startDate = moment(dateRange.from).startOf('day').toDate();
-//       const endDate = moment(dateRange.to).endOf('day').toDate(); // Covers the entire day
-
-//       console.log("Start Date:", startDate);
-//       console.log("End Date:", endDate);
-
-//       testResults = testResults.filter(result => {
-//         const testDate = moment(result.date, 'YYYY-MM-DD').toDate(); // Convert 'date' string to Date object
-//         const isInRange = moment(testDate).isBetween(startDate, endDate, null, '[]'); // Include both start and end dates
-//         console.log(`Test Result ID: ${result._id}, Date: ${testDate}, In Range: ${isInRange}`);
-//         return isInRange;
-//       });
-
-//       console.log("Filtered Test Results by Date Range:", testResults); // Log filtered test results
-//     } else {
-//       console.log("No date range provided; skipping date filtering.");
-//     }
-
-//     // Filter test results by test type if provided
-//     if (Array.isArray(testType) && testType.length > 0) {
-//       testResults = testResults.filter(result => testType.includes(result.testType));
-//       console.log("Filtered Test Results by Test Type:", testResults); // Log filtered test results
-//     } else {
-//       console.log("No test type provided; skipping test type filtering.");
-//     }
-
-//     // Sort test results by createdAt in descending order
-//     testResults.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-//     console.log("Sorted Test Results by createdAt:", testResults); // Log sorted test results
-
-//     // Prepare the user profile response
-//     const userProfile = {
-//       firstName: user.firstName,
-//       lastName: user.lastName,
-//       email: user.email,
-//       role: user.role,
-//       isEmailVerified: user.isEmailVerified,
-//       isActive: user.isActive,
-//       createdAt: user.createdAt,
-//       updatedAt: user.updatedAt,
-//       mobileNumber: user.mobileNumber,
-//       profilePicture: user.profilePicture,
-//       testResults: testResults,
-//     };
-
-//     return res.status(200).json({
-//       success: true,
-//       user: userProfile,
-//     });
-
-//   } catch (error) {
-//     console.error("Error fetching user profile:", error);
-//     return res.status(500).json({
-//       message: "Internal server error",
-//       success: false,
-//     });
-//   }
-// };
-
-
+  
 exports.myProfile = async (req, res) => {
   try {
     // Extract token from the Authorization header
@@ -954,7 +837,7 @@ exports.myProfile = async (req, res) => {
     }
 
     // Find user by ID without sensitive fields
-  
+
     const user = await User.findById(userId).select('-password -otp -otpExpiration');
     if (!user) {
       return res.status(404).json({
@@ -965,8 +848,8 @@ exports.myProfile = async (req, res) => {
 
     // Fetch user's test results
     const userIdMatchCondition = mongoose.Types.ObjectId.isValid(userId)
-    ? new mongoose.Types.ObjectId(userId) // If valid ObjectId
-    : userId; 
+      ? new mongoose.Types.ObjectId(userId) // If valid ObjectId
+      : userId;
 
     let testResults = await TestResult.find({ userId }).lean().sort({ createdAt: -1 });
 
@@ -1048,8 +931,6 @@ exports.myProfile = async (req, res) => {
     });
   }
 };
-
-
 
 exports.editProfile = async (req, res) => {
   try {
@@ -1142,9 +1023,6 @@ exports.getUserDetail = async (req, res) => {
   }
 };
 
-// save  user Question data
-
-
 exports.userQuestionData = async (req, res) => {
   try {
     // console.log("req.body", req.body);
@@ -1222,7 +1100,6 @@ exports.userQuestionData = async (req, res) => {
   }
 };
 
-
 exports.findquestionMarkSatatus = async (req, res) => {
   const { userId, questionId } = req.body;
 
@@ -1250,7 +1127,6 @@ exports.findquestionMarkSatatus = async (req, res) => {
   }
 };
 
-// Function to update question percentages
 const updateQuestionPercentages = async (questionId) => {
   // Fetch all user question data related to this question
   const userQuestionData = await UserQuestionData.find({ questionId });
@@ -1340,8 +1216,6 @@ exports.updateQuestionData = async (req, res) => {
     return res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
-
-
 
 exports.submitTestResults = async (req, res) => {
   try {
@@ -1492,15 +1366,6 @@ exports.lastSubmitQuestion = async (req, res) => {
   }
 };
 
-function toCamelCase(str) {
-  return str
-    .replace(/(?:^\w|[A-Z]|\b\w|\s+)/g, (match, index) =>
-      index === 0 ? match.toLowerCase() : match.toUpperCase()
-    )
-    .replace(/\s+/g, '');
-}
-
-
 exports.allExamRecord = async (req, res) => {
   try {
     // Extracting userId from the request body
@@ -1636,12 +1501,11 @@ exports.allExamRecord = async (req, res) => {
 };
 
 
-
-
+// subscription apis
 
 exports.getSubscriptionDetails = async (req, res) => {
   try {
-    const { id } = req.params; // Get userId from route parameters
+    const { id } = req.params;
 
     // Validate ObjectId (if using Mongoose)
     if (!mongoose.isValidObjectId(id)) {
@@ -1683,6 +1547,8 @@ exports.getSubscriptionDetails = async (req, res) => {
       paymentAmount: subscription.paymentAmount,
       currency: subscription.currency,
       subscriptionPlan: subscription.subscriptionPlan,
+      subscriptionId: subscription.subscriptionId,
+      productId : subscription.productId,
       priceId: subscription.priceId,
       startedAt: subscription.startedAt,
       expiresAt: subscription.expiresAt,
@@ -1721,14 +1587,70 @@ exports.getSubscriptionDetails = async (req, res) => {
   }
 };
 
+exports.cancelSubscription = async (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  // console.log("Token in myProfile:", token);
+
+  // Check for token presence
+  if (!token) {
+    return res.status(401).json({
+      message: "No token provided!",
+      success: false,
+    });
+  }
+
+  // Verify the token
+  const decoded = jwt.verify(token, process.env.SECRET_KEY);
+  const userId = decoded.userId; // Assuming userId is stored in the token
+
+  const { isSubscriptionCancel } = req.body;
+
+  if (!isSubscriptionCancel) {
+    return res.status(200).json({
+      success: true,
+      message: "Please send me proof !!",
+    });
+  }
+  console.log("userId", userId)
+  const subscription = await Subscription.findOne({ userId })
+    .sort({ createdAt: -1 });
+
+  console.log("subscription", subscription)
+  if (!subscription) {
+    return res.status(200).json({
+      success: true,
+      message: "subscription not found!!",
+    });
+  }
+  // Check subscription status
+  if (subscription.subscriptionStatus === "active") {
+    // Update subscription status to 'pending' for cancellation review
+    subscription.subscriptionStatus = "pending";
+    subscription.updatedAt = new Date();
+
+    await subscription.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Your subscription cancellation is pending review.",
+    });
+  }
+
+  return res.status(400).json({
+    success: false,
+    message: `Subscription is already in "${subscription.subscriptionStatus}" status.`,
+  });
+
+}
+
 exports.getUserTransactionHistory = async (req, res) => {
   try {
     const { id } = req.params;
-    console.log("userid", id)
+    console.log("userid", id);
 
     // Find all subscriptions associated with the user
-    const transactions = await Subscription.find({ userId: id, subscriptionStatus : "active" }).sort({ createdAt: -1 });
-    console.log("transactions", transactions)
+    const transactions = await Subscription.find({ userId: id }).sort({ createdAt: -1 });
+    console.log("transactions", transactions);
 
     if (!transactions || transactions.length === 0) {
       return res.status(404).json({
@@ -1737,25 +1659,83 @@ exports.getUserTransactionHistory = async (req, res) => {
       });
     }
 
-    // Optionally, you can format the response data
-    const transactionHistory = transactions.map(transaction => ({
-      transactionId: transaction.transactionId,
-      paymentAmount: transaction.paymentAmount,
-      currency: transaction.currency,
-      paymentMethod: transaction.paymentMethod,
-      subscriptionPlan: transaction.subscriptionPlan,
-      planType:  transaction.subscriptionPlan  ? transaction.subscriptionPlan : "no plan",
-      subscriptionStatus: transaction.subscriptionStatus,
-      startedAt: transaction.startedAt.toISOString().slice(0, 10), // Format to 'yyyy-mm-dd'
-      expiresAt: transaction.expiresAt ? transaction.expiresAt.toISOString().slice(0, 10) : null,
-    }));
+    // Fetch subscriptions for each transaction
+    const subs = await Promise.all(
+      transactions.map(async (transaction) => {
+        console.log("transaction", transaction);
+        console.log("transactions.subscriptionId", transaction.subscriptionId);
+
+        try {
+          const subscriptionSchema = await SubscriptionSchema.findOne({ stripeProductId: transaction.subscriptionId });
+          if (!subscriptionSchema) {
+            console.warn(`No subscription found for ID: ${transaction.subscriptionId}`);
+            return null; // Return null if no matching subscription
+          }
+          return subscriptionSchema;
+        } catch (error) {
+          console.error(`Error fetching subscription for ID: ${transaction.subscriptionId}`, error);
+          return null; // Handle and log errors gracefully
+        }
+      })
+    );
+
+    console.log("Subscriptions Schema", subs);
+
+    // Separate active subscription
+    const activeTransaction = transactions.find(
+      (transaction) => transaction.subscriptionStatus === "active"
+    );
+
+    const activeHistory = activeTransaction
+      ? {
+        transactionId: activeTransaction.transactionId,
+        paymentAmount: activeTransaction.paymentAmount,
+        currency: activeTransaction.currency,
+        title: subs[transactions.indexOf(activeTransaction)]
+          ? subs[transactions.indexOf(activeTransaction)].title
+          : "Unknown Title",
+        subscriptionTime: subs[transactions.indexOf(activeTransaction)]
+          ? subs[transactions.indexOf(activeTransaction)].subscriptionTime
+          : null,
+        paymentMethod: activeTransaction.paymentMethod,
+        subscriptionPlan: activeTransaction.subscriptionPlan,
+        planType: activeTransaction.subscriptionPlan
+          ? activeTransaction.subscriptionPlan
+          : "no plan",
+        subscriptionStatus: activeTransaction.subscriptionStatus,
+        startedAt: activeTransaction.startedAt
+          .toISOString()
+          .slice(0, 10), // Format to 'yyyy-mm-dd'
+        expiresAt: activeTransaction.expiresAt,
+      }
+      : null;
+
+    const transactionHistory = transactions.map((transaction, index) => {
+      const subscriptionSchema = subs[index]; // Match the corresponding subscription
+      return {
+        transactionId: transaction.transactionId,
+        paymentAmount: transaction.paymentAmount,
+        currency: transaction.currency,
+        title: subscriptionSchema ? subscriptionSchema.title : "Unknown Title",
+        subscriptionTime: subscriptionSchema ? subscriptionSchema.subscriptionTime : null,
+        paymentMethod: transaction.paymentMethod,
+        subscriptionPlan: transaction.subscriptionPlan,
+        planType: transaction.subscriptionPlan ? transaction.subscriptionPlan : "no plan",
+        subscriptionStatus: transaction.subscriptionStatus,
+        startedAt: transaction.startedAt.toISOString().slice(0, 10), // Format to 'yyyy-mm-dd'
+        expiresAt: transaction.expiresAt,
+      };
+    });
+
+    console.log("Active Transaction", activeHistory);
+    console.log("Transaction History", transactionHistory);
 
     res.status(200).json({
       success: true,
-      message: "All Transction found Successfully !!",
-      transactionHistory,
+      message: "Transaction history found successfully!",
+      activeSubscription: activeHistory,
+      transactions: transactionHistory, // Include activeTransaction here as well
     });
-
   } catch (err) {
     console.error("Error fetching transaction history:", err);
     res.status(500).json({
@@ -1765,57 +1745,52 @@ exports.getUserTransactionHistory = async (req, res) => {
   }
 };
 
-
 exports.createGuest = async (req, res) => {
   try {
-      const { guestId } = req.body;
+    const { guestId } = req.body;
 
-      // Validate if guestId is provided
-      if (!guestId) {
-          return res.status(400).json({
-              success: false,
-              message: 'Guest ID is required!',
-          });
-      }
-
-      // Check if the guest user already exists
-      console.log("guestId", guestId);
-      let guestUser = await User.findOne({ guestId });
-      console.log("guestUser", guestUser);
-
-      if (!guestUser) {
-          // If the guest user does not exist, create a new one
-          guestUser = new User({
-              guestId,
-              isGuest: true, 
-              isBlocked: false, 
-              email: `guest_${guestId}@example.com`,  // Provide a unique email
-              name: `Guest-${guestId}`,  // Optionally, set a name or other details
-          });
-
-          await guestUser.save();
-      }
-
-      // Generate a JWT token for the guest user
-      const tokenData = { userId: guestUser._id };
-      const token = jwt.sign(tokenData, "SCOREMORE");
-
-      console.log("guestUser", guestUser);
-      // Send the response with the user data and token
-      res.status(201).json({
-          success: true,
-          user: guestUser,
-          token,  // Include the JWT token in the response
+    // Validate if guestId is provided
+    if (!guestId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Guest ID is required!',
       });
+    }
+
+    // Check if the guest user already exists
+    console.log("guestId", guestId);
+    let guestUser = await User.findOne({ guestId });
+    console.log("guestUser", guestUser);
+
+    if (!guestUser) {
+      // If the guest user does not exist, create a new one
+      guestUser = new User({
+        guestId,
+        isGuest: true,
+        isBlocked: false,
+        email: `guest_${guestId}@example.com`,  // Provide a unique email
+        name: `Guest-${guestId}`,  // Optionally, set a name or other details
+      });
+
+      await guestUser.save();
+    }
+
+    // Generate a JWT token for the guest user
+    const tokenData = { userId: guestUser._id };
+    const token = jwt.sign(tokenData, "SCOREMORE");
+
+    console.log("guestUser", guestUser);
+    // Send the response with the user data and token
+    res.status(201).json({
+      success: true,
+      user: guestUser,
+      token,  // Include the JWT token in the response
+    });
   } catch (error) {
-      console.error('Error creating guest user:', error);
-      res.status(500).json({ success: false, message: 'Error creating guest user!' });
+    console.error('Error creating guest user:', error);
+    res.status(500).json({ success: false, message: 'Error creating guest user!' });
   }
 };
-
-
-
-
 
 
 // exports.userDailyStreak = async (req, res) => {
@@ -1953,8 +1928,8 @@ exports.userDailyStreak = async (req, res) => {
       const lastStrikeDiff = (currentTime - new Date(userStrike.lastStrikeUpdateTime)) / 1000; // in seconds
 
       // Check if more than 24 hours have passed since the last strike update (24 hours = 86,400 seconds)
-      if (lastStrikeDiff >= 86400) { // 86400 seconds = 24 hours
-        if (lastSubmissionDiff <= 86400) { // Check if a test was submitted in the last 24 hours
+      if (lastStrikeDiff >= 60) { // 86400 seconds = 24 hours
+        if (lastSubmissionDiff <= 60) { // Check if a test was submitted in the last 24 hours
           // If a test was submitted in the last 24 hours, increase the streak
           userStrike.strikeCount += 1;
           userStrike.lastStrikeUpdateTime = currentTime;
@@ -1984,9 +1959,6 @@ exports.userDailyStreak = async (req, res) => {
   }
 };
 
-
-
-
 exports.contactUs = async (req, res) => {
   const { name, email, message } = req.body;
 
@@ -2013,7 +1985,7 @@ exports.rateUs = async (req, res) => {
     if (existingRating) {
       // Update the existing rating
       existingRating.rating = rating;
-      existingRating.description = description || existingRating.description; 
+      existingRating.description = description || existingRating.description;
       await existingRating.save();
 
       return res.status(200).json({ message: 'Thank you for updating your feedback!', data: existingRating });
@@ -2034,9 +2006,6 @@ exports.rateUs = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
-
-
-
 
 
 // user invoice 
@@ -2110,7 +2079,6 @@ exports.getInvoicetemplate = async (req, res) => {
   }
 };
 
-
 const getInvoiceData = async (invoiceId, subscription, clientDetails) => {
   // Calculate total amount based on subscription payment amount
   const totalAmount = subscription.paymentAmount; // You can adjust this if needed
@@ -2125,8 +2093,8 @@ const getInvoiceData = async (invoiceId, subscription, clientDetails) => {
     companyPhone: '123-456-7890',
     clientName: `${clientDetails.firstName || 'Client'} ${clientDetails.lastName || 'Name'}`,
     clientAddress: clientDetails.address || '5678 Avenue, City, Country',
-    clientEmail: clientDetails.email || 'client@example.com', 
-    paymentMethod: subscription.paymentMethod, 
+    clientEmail: clientDetails.email || 'client@example.com',
+    paymentMethod: subscription.paymentMethod,
     items: [
       { description: `${subscription.subscriptionPlan}`, amount: totalAmount },
       // Add more items if necessary
@@ -2168,6 +2136,9 @@ const generatePDFBuffer = async (html, invoiceId) => {
   }
 };
 
+
+// reminder
+
 exports.sendReminder = async (req, res) => {
   try {
     const token = req.headers.authorization?.split(" ")[1];
@@ -2190,7 +2161,6 @@ exports.sendReminder = async (req, res) => {
     }
 
     const userId = decoded.userId;
-
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({
@@ -2200,8 +2170,8 @@ exports.sendReminder = async (req, res) => {
     }
 
     const email = user.email;
-
     const { message, time, allDay, dateTime } = req.body;
+
     if (!message || (allDay && !time) || (!allDay && !dateTime)) {
       return res.status(400).json({
         success: false,
@@ -2237,13 +2207,22 @@ exports.sendReminder = async (req, res) => {
 
     if (allDay) {
       console.log(`Scheduling daily reminder for ${email} at ${hour}:${minute}`);
-      const cronTime = { hour, minute, tz: 'Asia/Kolkata' }; 
-      schedule.scheduleJob({ cronTime}, async () => { 
-        const updatedUser = await User.findById(userId);
-        console.log("updatedUser", updatedUser)
+      
+      // Cron job to send daily email at the same time
+      const cronTime = `${minute} ${hour} * * *`; // minute hour * * *
+      
+      cron.schedule(cronTime, async () => {
         try {
-          console.log(`Sending daily reminder to ${email}`);
-          if(updatedUser.emailNotificationToggle){
+          const reminderToSend = await Reminder.findOne({
+            _id: newReminder._id,
+            sentDate: null,
+          });
+
+          if (!reminderToSend) return;
+
+          const updatedUser = await User.findById(userId);
+          if (updatedUser.emailNotificationToggle) {
+            console.log(`Sending daily reminder to ${email}`);
             await sendEmail({
               from: process.env.MAIL_ID,
               to: email,
@@ -2251,15 +2230,17 @@ exports.sendReminder = async (req, res) => {
               text: message,
             });
           }
-         
 
+          // Mark the reminder as sent every day
           await Reminder.findByIdAndUpdate(newReminder._id, { sentDate: new Date() });
           console.log(`Daily reminder sent to ${email}`);
         } catch (emailError) {
           console.error(`Error sending daily reminder to ${email}:`, emailError);
         }
-      });
+      }, { timezone: "Asia/Kolkata" });
+
     } else {
+      // One-time reminder logic remains unchanged
       const scheduledDate = new Date(dateTime);
       if (scheduledDate < new Date()) {
         return res.status(400).json({
@@ -2269,12 +2250,11 @@ exports.sendReminder = async (req, res) => {
       }
 
       schedule.scheduleJob(scheduledDate, async () => {
-        const updatedUser = await User.findById(userId); 
-       
+        const updatedUser = await User.findById(userId);
 
         try {
           console.log(`Sending one-time reminder to ${email} at ${scheduledDate}`);
-          if(updatedUser.emailNotificationToggle){
+          if (updatedUser.emailNotificationToggle) {
             await sendEmail({
               from: process.env.MAIL_ID,
               to: email,
@@ -2282,7 +2262,6 @@ exports.sendReminder = async (req, res) => {
               text: message,
             });
           }
-          
 
           await Reminder.findByIdAndUpdate(newReminder._id, { sentDate: new Date() });
           console.log(`One-time reminder sent to ${email}`);
@@ -2340,12 +2319,12 @@ exports.getUserReminders = async (req, res) => {
     await cleanupCompletedReminders();
     const reminders = await Reminder.find({ email: user.email });
     const currentDate = new Date();
-    console.log("currentDate",currentDate)
+    console.log("currentDate", currentDate)
     const pastReminders = reminders.filter(reminder => new Date(reminder.dateTime) < currentDate);
 
-    console.log("pastReminders",pastReminders)
+    console.log("pastReminders", pastReminders)
     // if (pastReminders.length > 0) {
-      // Call the cleanup function to remove past reminders
+    // Call the cleanup function to remove past reminders
     // }
 
     if (reminders.length === 0) {
@@ -2369,22 +2348,23 @@ exports.getUserReminders = async (req, res) => {
   }
 };
 
-
 exports.deleteReminder = async (req, res) => {
   try {
     const { id } = req.params;
     const reminder = await Reminder.findByIdAndDelete(id);
 
     if (!reminder) {
-        return res.status(404).json({ success: false, message: 'Reminder not found' });
+      return res.status(404).json({ success: false, message: 'Reminder not found' });
     }
 
     res.json({ success: true, message: 'Reminder deleted successfully' });
-} catch (error) {
+  } catch (error) {
     console.error('Error deleting reminder:', error);
     res.status(500).json({ success: false, message: 'An error occurred while deleting the reminder' });
+  }
 }
-}
+
+// notiffication setting 
 
 exports.getNotificationSettings = async (req, res) => {
   try {
@@ -2409,21 +2389,21 @@ exports.getNotificationSettings = async (req, res) => {
     }
 
     const userId = decoded.userId;
-      const user = await User.findById(userId, 'emailNotificationToggle');
+    const user = await User.findById(userId, 'emailNotificationToggle');
 
-      if (!user) {
-          return res.status(404).json({ success: false, message: 'User not found.' });
-      }
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
 
-      res.status(200).json({
-          success: true,
-          notificationSettings: {
-              emailNotificationToggle: user.emailNotificationToggle,
-          },
-      });
+    res.status(200).json({
+      success: true,
+      notificationSettings: {
+        emailNotificationToggle: user.emailNotificationToggle,
+      },
+    });
   } catch (error) {
-      console.error('Error fetching notification settings:', error);
-      res.status(500).json({ success: false, message: 'Internal server error.' });
+    console.error('Error fetching notification settings:', error);
+    res.status(500).json({ success: false, message: 'Internal server error.' });
   }
 };
 
@@ -2482,12 +2462,36 @@ exports.updateNotificationToggle = async (req, res) => {
 };
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 async function sendEmail(mailOptions) {
   try {
     // Set SendGrid API key
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-    
+
     const msg = {
       to: mailOptions.to,       // Recipient email address
       from: process.env.MAIL_ID, // Verified sender email address in SendGrid

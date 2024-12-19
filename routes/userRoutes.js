@@ -40,6 +40,7 @@ router.post("/dailyStreak", userController.userDailyStreak)
 
 // user subscription rouyr
 router.get("/subscription/:id", userController.getSubscriptionDetails)
+router.post("/cancelSubscription", userController.cancelSubscription);
 router.get("/transactionHistory/:id", userController.getUserTransactionHistory);
 router.get("/invoice/:id", userController.getInvoicetemplate);
 
@@ -52,6 +53,9 @@ router.get("/get-reminder", userController.getUserReminders);
 router.get("/getNotificationSettings", userController.getNotificationSettings);
 router.put("/updateNotificationToggle", userController.updateNotificationToggle);
 router.delete("/delete-reminder/:id", userController.deleteReminder);
+
+
+
 
 
 module.exports = router;

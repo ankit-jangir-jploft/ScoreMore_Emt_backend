@@ -452,6 +452,10 @@ exports.editProfile = async (req, res) => {
       user.email = email || user.email;
       user.mobileNumber = mobileNumber || user.mobileNumber; 
       user.profilePicture = profilePicture || user.profilePicture; // Update profile picture if new one is uploaded
+
+      if(email){
+        user.isGuest = false;
+      }
   
       await user.save();
   
@@ -714,7 +718,7 @@ exports.deleteSubscription = async (req, res) => {
 
 // flashcard
 exports.getAllFlashcards = async (req, res) => {
-    const { page = 1, limit = 9, subject, level } = req.query; // Extracting query parameters
+    const { page = 1, limit = 9, subjectId, level } = req.query; // Extracting query parameters
     const options = {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -723,8 +727,8 @@ exports.getAllFlashcards = async (req, res) => {
     try {
         // Build the filter object
         const filter = {};
-        if (subject) {
-            filter.subject = subject; // Add subject filtering if provided
+        if (subjectId) {
+            filter.subjectId = subjectId; // Add subject filtering if provided
         }
         if (level) {
             filter.level = level; // Add level filtering if provided
@@ -977,6 +981,22 @@ exports.getAllSubjects = async (req, res) => {
     }
 }
 
+
+exports.getOneSubjects = async (req, res) => {
+    const { subject } = req.body;
+    try {
+        const subjects = await Subject.findById(subject)
+          
+
+        res.json({
+            success: true,
+            data : subjects,
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Failed to fetch subjects' });
+    }
+}
+
 exports.addSubject = async (req, res) => {
     const { name } = req.body;
     if (!name) return res.status(400).json({ success: false, message: 'Subject name is required' });
@@ -997,12 +1017,28 @@ exports.updateSubject = async (req, res) => {
     if (!name) return res.status(400).json({ success: false, message: 'Subject name is required' });
 
     try {
-        await Subject.findByIdAndUpdate(id, { name });
-        res.json({ success: true, message: 'Subject updated successfully' });
+        // Update the subject in the Subject collection
+        const subjectUpdate = await Subject.findByIdAndUpdate(id, { name });
+
+        // If subject update is successful, update the subject in Flashcards collection
+        if (subjectUpdate) {
+            await Flashcard.updateMany(
+                { subjectId: id },  // Filter to find all flashcards with the given subjectId
+                { $set: { subject: name } }  // Update the subject field in those flashcards
+            );
+            await Question.updateMany(
+                { subjectId : id },
+                { $set : {subject : name }}
+            )
+            res.json({ success: true, message: 'Subject updated successfully' });
+        } else {
+            res.status(404).json({ success: false, message: 'Subject not found' });
+        }
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Failed to update subject' });
+        res.status(500).json({ success: false, message: 'Failed to update subject', error: error.message });
     }
 }
+
 
 
 exports.deleteSubject = async (req, res) => {
