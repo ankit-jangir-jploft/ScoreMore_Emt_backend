@@ -4,7 +4,7 @@ const { UserQuestionData, Feedback, User } = require("../models/User");
 
 const Question = require('../models/question');
 const csv = require('csvtojson');
-const { default: mongoose } = require('mongoose');
+const mongoose = require('mongoose');
 const TestResult = require('../models/TestResult');
 const FilteredQuestion = require('../models/FilterQuestionTestData');
 const Subject = require('../models/Subject');
@@ -744,8 +744,10 @@ exports.submitQuestionFeedback = async (req, res) => {
 };
 
 
+
+
 exports.getAllQuestions = async (req, res) => {
-  const { page = 1, limit = 10, subject } = req.query; // Extracting query parameters
+  const { page = 1, limit = 10, subjectId, level } = req.query; // Extracting query parameters
   const options = {
     page: parseInt(page),
     limit: parseInt(limit),
@@ -754,9 +756,21 @@ exports.getAllQuestions = async (req, res) => {
   try {
     // Build the filter object
     const filter = { isActive: true };
-    if (subject) {
-      filter.subject = subject; // Add subject filtering if provided
+
+    if (subjectId) {
+      // Validate and convert subjectId to ObjectId for MongoDB query
+      if (mongoose.Types.ObjectId.isValid(subjectId)) {
+        filter.subjectId = new mongoose.Types.ObjectId(subjectId);
+      } else {
+        return res.status(400).json({ success: false, message: "Invalid subjectId" });
+      }
     }
+
+    if (level) {
+      filter.level = level; // Add level filtering if provided
+    }
+
+    console.log("FILTERS", filter);
 
     // Fetch questions sorted by the creation date in descending order
     const questions = await Question.find(filter)

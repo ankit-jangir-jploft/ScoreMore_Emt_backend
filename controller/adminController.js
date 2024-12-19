@@ -561,7 +561,7 @@ exports.createSubscription = async (req, res) => {
 exports.updateSubscriptionPrice = async (req, res) => {
   try {
     const { id } = req.params;
-    const { price } = req.body;
+    const { price, title,subscriptionTime } = req.body;
 
     // Find the subscription in the database
     const subscription = await SubscriptionSchema.findById(id);
@@ -591,6 +591,8 @@ exports.updateSubscriptionPrice = async (req, res) => {
 
     // Update the database with the new price and price ID
     subscription.price = price;
+    subscription.title = title;  // Update the title if needed
+    subscription.subscriptionTime = subscriptionTime; 
     subscription.stripePriceId = newStripePrice.id;
     await subscription.save();
 
