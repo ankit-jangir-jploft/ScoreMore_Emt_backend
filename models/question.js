@@ -19,6 +19,11 @@ const questionSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  subjectId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Subject', // Reference to Subject model
+    required: true
+  },
   level: {
     type: String,
     enum: ['easy', 'medium', 'hard'],

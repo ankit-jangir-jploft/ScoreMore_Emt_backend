@@ -99,18 +99,19 @@ const SubscriptionSchema = new mongoose.Schema({
       type: String,
       required: true
   },
+  productId: {
+    type: String,
+  },
   paymentAmount: {
       type: Number,
-      required: true
   },
   currency: {
       type: String,
-      required: true,
       default: 'USD'
   },
   subscriptionStatus: {
       type: String,
-      enum: ['pending', 'active', 'canceled'],
+      enum: ['pending', 'active', 'canceled', 'expired'],
       default: 'pending'
   },
   subscriptionId : {
@@ -120,22 +121,19 @@ const SubscriptionSchema = new mongoose.Schema({
   paymentStatus: { type: String,  enum: ["success", "pending", "failed"] },
   paymentMethod: {
       type: String,
-      required: true
   },
   subscriptionPlan: {
       type: String, 
-      required: true
   },
   priceId: {
     type: String, 
-    required: true
   },
   orderId : {
     type: String, 
   },
+  autoRenewal: { type: Boolean, default: true },
   startedAt: {
       type: Date,
-      required: true,
       default: Date.now
   },
   expiresAt: {

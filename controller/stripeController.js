@@ -2,10 +2,46 @@ const { User, Subscription, updateSearchIndex } = require("../models/User");
 const axios = require('axios'); // Import axios for making API requests
 require("dotenv").config();
 
+const SubscriptionSchema = require("../models/StripeModels")
 console.log("process.env.STRIPE_SECRET_KEY", process.env.STIPRE_SECRET_KEY);
 const stripe = require("stripe")(process.env.STIPRE_SECRET_KEY);
-
+const jwt = require("jsonwebtoken");
+const { Buffer } = require("safe-buffer");
 const sgMail = require('@sendgrid/mail');
+
+const cron = require('node-cron');
+
+
+const checkAndUpdateSubscriptions = async () => {
+    try {
+        console.log("it hitss cron ")
+        const currentDate = new Date();
+
+        // Find subscriptions that are expired and still active
+        const expiredSubscriptions = await Subscription.find({
+            subscriptionStatus: 'active',
+            expiresAt: { $lt: currentDate },
+        });
+
+        if (expiredSubscriptions.length > 0) {
+            for (const subscription of expiredSubscriptions) {
+                subscription.subscriptionStatus = 'expired';
+                await subscription.save();
+                console.log(`Updated subscription ${subscription._id} to pending`);
+            }
+        } else {
+            console.log('No expired subscriptions to update');
+        }
+    } catch (error) {
+        console.error('Error checking and updating subscriptions:', error);
+    }
+};
+
+// Schedule the function to run every minute
+cron.schedule('0 * * * *', async () => {
+    console.log('Running subscription check...');
+    await checkAndUpdateSubscriptions();
+});
 
 exports.checkout = async (req, res) => {
     try {
@@ -42,7 +78,7 @@ exports.checkout = async (req, res) => {
         if (existingSubscription) {
             const currentDate = new Date();
             const expiresAt = new Date(existingSubscription.expiresAt);
-            const remainingDays = Math.ceil((expiresAt - currentDate) / (1000 * 60 * 60 * 24)); 
+            const remainingDays = Math.ceil((expiresAt - currentDate) / (1000 * 60 * 60 * 24));
 
             if (expiresAt > currentDate && remainingDays > 0 && existingSubscription.subscriptionStatus === "active") {
                 return res.status(400).json({
@@ -76,11 +112,12 @@ exports.checkout = async (req, res) => {
             transactionId: session.id,
             paymentAmount: session.amount_total / 100,
             currency: session.currency,
+            productId : selectedSubscription.stripeProductId,
             subscriptionStatus: 'pending', // Start as pending until confirmed
             paymentMethod: 'card',
             subscriptionPlan: selectedSubscription.title,
-            priceId : priceId,
-            orderId : await randomOrderId(),
+            priceId: priceId,
+            orderId: await randomOrderId(),
             startedAt: new Date(),
             expiresAt: new Date(Date.now() + planDuration * 24 * 60 * 60 * 1000), // Set expiration date
         });
@@ -166,7 +203,7 @@ exports.stripeSession = async (req, res) => {
 
             user.subscriptionStatus = "active";
             user.subscriptionId = subscription._id;
-           
+
             await user.save();
 
 
@@ -280,15 +317,15 @@ exports.stripeSession = async (req, res) => {
                   </style>
                 `
             };
-              
-              
+
+
 
             const emailSent = await sendEmail(mailOptions);
             if (!emailSent) {
-              return res.status(500).json({
-                message: "Failed to send verification email.",
-                success: false,
-              });
+                return res.status(500).json({
+                    message: "Failed to send verification email.",
+                    success: false,
+                });
             }
 
             // console.log("Subscription and user updated to active status");
@@ -307,55 +344,85 @@ exports.stripeSession = async (req, res) => {
     }
 };
 
-const randomOrderId = async function() {
-  // Generate a random number between 0 and 99999
-  const randomNumber = Math.floor(Math.random() * 100000);
-  
-  // Ensure it has 5 digits, padding with zeros if necessary
-  const formattedNumber = String(randomNumber).padStart(5, '0');
-  
-  // Prefix with 'sm'
-  return `ORDER-${formattedNumber}`;
+const randomOrderId = async function () {
+    // Generate a random number between 0 and 99999
+    const randomNumber = Math.floor(Math.random() * 100000);
+
+    // Ensure it has 5 digits, padding with zeros if necessary
+    const formattedNumber = String(randomNumber).padStart(5, '0');
+
+    // Prefix with 'sm'
+    return `ORDER-${formattedNumber}`;
 };
 
 async function sendEmail(mailOptions) {
     try {
-      // Set SendGrid API key
-      sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-  
-      
-      const msg = {
-        to: mailOptions.to,       // Recipient email address
-        from: process.env.MAIL_ID, // Verified sender email address in SendGrid
-        subject: mailOptions.subject, // Subject of the email
-        text: mailOptions.text,    // Plain text content (optional)
-        html: mailOptions.html,    // HTML content (optional)
-      };
-  
-      // Send the email using SendGrid
-      const response = await sgMail.send(msg);
-      // console.log("Email sent successfully:", response);
-      return true;
+        // Set SendGrid API key
+        sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+
+        const msg = {
+            to: mailOptions.to,       // Recipient email address
+            from: process.env.MAIL_ID, // Verified sender email address in SendGrid
+            subject: mailOptions.subject, // Subject of the email
+            text: mailOptions.text,    // Plain text content (optional)
+            html: mailOptions.html,    // HTML content (optional)
+        };
+
+        // Send the email using SendGrid
+        const response = await sgMail.send(msg);
+        // console.log("Email sent successfully:", response);
+        return true;
     } catch (error) {
-      console.error("Error sending email:", error.response?.body || error.message);
-      return false;
+        console.error("Error sending email:", error.response?.body || error.message);
+        return false;
     }
-  }
+}
 
 
-  exports.saveSubscription = async (req, res) => {
-    const { subscriptionId, transactionId, paymentStatus, platform, userId, expiresAt } = req.body;
+exports.saveSubscription = async (req, res) => {
+    const token = req.headers.authorization?.split(" ")[1];
 
-    // Validate request body
-    if (!subscriptionId || !transactionId || !paymentStatus || !platform || !userId || !expiresAt) {
-        return res.status(400).json({ message: "All fields are required, including expiration date." });
+    if (!token) {
+        return res.status(401).json({
+            message: "No token provided!",
+            success: false,
+        });
     }
 
     try {
-        // Step 1: Check and update expired subscriptions
-        const existingSubscriptions = await Subscription.find({ userId });
+        const decoded = jwt.verify(token, process.env.SECRET_KEY);
+        const userId = decoded.userId;
 
+        const { subscriptionId, transactionId, paymentStatus, platform } = req.body;
+
+        if (!subscriptionId || !transactionId || !paymentStatus || !platform) {
+            return res.status(400).json({
+                success: false,
+                message: "All fields are required, including subscription time.",
+            });
+        }
+
+        const subscriptionSchema = await SubscriptionSchema.findOne({ stripeProductId: subscriptionId });
+        const SubscriptionTime = subscriptionSchema.subscriptionTime;
+        const subscriptionAmount = subscriptionSchema.price;
+
+        // Validate and map subscription time to duration in days
+        const planDuration = SubscriptionTime === "1_month" ? 30 :
+            SubscriptionTime === "3_months" ? 90 :
+                SubscriptionTime === "12_months" ? 365 : 0;
+
+        if (planDuration === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid subscription time provided.",
+            });
+        }
+
+        // Check and update expired subscriptions
+        const existingSubscriptions = await Subscription.find({ userId });
         const currentDate = new Date();
+
         for (const existingSubscription of existingSubscriptions) {
             if (
                 new Date(existingSubscription.expiresAt) <= currentDate &&
@@ -367,32 +434,269 @@ async function sendEmail(mailOptions) {
             }
         }
 
-        // Step 2: Check if there is any active subscription
-        const activeSubscription = existingSubscriptions.find(
-            (sub) => sub.paymentStatus === "success" && sub.subscriptionStatus === "active"
-        );
+        // Removed the "active subscription" check
+        // Now users can purchase a plan even if they have an active subscription
 
-        if (activeSubscription) {
-            return res.status(400).json({ message: "User already has an active subscription." });
-        }
+        // Calculate startedAt and expiresAt
+        const startedAt = currentDate;
+        const expiresAt = new Date(currentDate.getTime() + planDuration * 24 * 60 * 60 * 1000);
 
-        // Step 3: Create a new subscription document
+        // Create a new subscription document
         const subscription = new Subscription({
             subscriptionId,
             transactionId,
             paymentStatus,
             platform,
             userId,
+            productId : subscriptionId,
+            paymentAmount: subscriptionAmount,
             subscriptionStatus: paymentStatus === "success" ? "active" : "pending",
-            expiresAt: new Date(expiresAt),
+            startedAt,
+            expiresAt,
         });
 
-        // Save the subscription document to the database
         await subscription.save();
 
-        res.status(201).json({ message: "Subscription saved successfully.", data: subscription });
+        res.status(201).json({
+            success: true,
+            message: "Subscription saved successfully.",
+            data: subscription,
+        });
     } catch (error) {
         console.error("Error saving subscription:", error);
-        res.status(500).json({ message: "Error saving subscription.", error: error.message });
+        res.status(500).json({
+            success: false,
+            message: "Error saving subscription.",
+            error: error.message,
+        });
     }
 };
+
+
+exports.cancelIOSSubscription = async (req, res) => {
+    try {
+        const { signedPayload } = req.body;
+
+        // Parse signed payload
+        const tokenParts = signedPayload.split(".");
+        const payload = Buffer.from(tokenParts[1], "base64").toString("utf-8");
+        const decodedPayload = JSON.parse(payload);
+        console.log("decodedPayload", decodedPayload)
+        let useFullData = {};
+
+        // Extract signedTransactionInfo
+        if (decodedPayload?.data?.signedTransactionInfo) {
+            const signedTransactionInfo = decodedPayload.data.signedTransactionInfo;
+            const tokenParts1 = signedTransactionInfo.split(".");
+            const responseData = Buffer.from(tokenParts1[1], "base64").toString("utf-8");
+            console.log("responseData",responseData)
+            const responseJson = JSON.parse(responseData);
+
+            useFullData = {
+                notificationType: decodedPayload?.notificationType,
+                subtype : decodedPayload?.subtype,
+                transactionId: responseJson?.transactionId,
+                matchToken: responseJson?.originalTransactionId,
+                productId: responseJson?.productId,
+                purchaseDate: new Date(responseJson?.purchaseDate),
+                expiresDate: responseJson?.expiresDate,
+                transactionReason: responseJson?.transactionReason,
+            };
+
+            console.log("useFullData", useFullData);
+        }
+
+        // Call handleNotification
+        await handleNotification(useFullData);
+
+        return res.status(200).json({
+            success: true,
+            result: [],
+            message: "Notification processed successfully",
+        });
+    } catch (error) {
+        console.error("Error in cancelIOSSubscription:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+        });
+    }
+};
+
+
+const handleNotification = async (notification) => {
+    const { notificationType } = notification;
+
+    switch (notificationType) {
+        case "CANCEL":
+            await handleCancel(notification);
+            break;
+        case "DID_CHANGE_RENEWAL_STATUS":
+        case "DID_RENEW":
+            await handleRenew(notification);
+            break;
+        default:
+            console.log("Unknown notification type:", notificationType);
+    }
+};
+
+const handleRenew = async (notification) => {
+    try {
+        // Find the subscription based on the matchToken
+        const subscription = await Subscription.findOne({
+            transactionId: notification.transactionId,
+        }).populate({ path: 'userId', select: "_id firstName lastName email" });
+
+        if (!subscription) {
+            console.log("No subscription found for the given transaction ID.");
+            return;
+        }
+        console.log("notification",notification)
+
+        // Step 1: Handle Auto-Renewal Disabled
+        if (notification.notificationType === "DID_CHANGE_RENEWAL_STATUS") {
+            if (notification.subtype === "AUTO_RENEW_DISABLED") {
+                // Auto-renewal is disabled, just disable the auto-renewal flag
+                console.log("subscriptionbefore", subscription)
+                subscription.autoRenewal = false; // Set auto-renewal to false
+                console.log("subscriptionafter", subscription)
+                await subscription.save();
+
+                console.log("Auto-renewal has been disabled.");
+
+                // No need to mark subscription as "pending" or "expired"
+                // Subscription remains in its current status (e.g., "active" until it actually expires)
+                return;
+            }
+        }
+
+        // Step 2: Handle other renewal or expiration scenarios
+        if (notification.notificationType === "RENEWAL") {
+            const newExpireDate = new Date(notification.expiresDate);
+            console.log("New expiration date:", newExpireDate);
+
+            // Update subscription expiry date
+            subscription.expiresAt = newExpireDate;
+            subscription.subscriptionStatus = "active"; // Mark as active when renewed
+            await subscription.save();
+
+            // Update user’s plan status
+            const updatedUser = await User.findByIdAndUpdate(
+                subscription.userId._id,
+                {
+                    subscriptionStatus: "active", // Ensure subscription is active
+                    plan_date: newExpireDate,
+                    updatedAt: new Date(),
+                },
+                { new: true }
+            );
+
+            console.log("User subscription renewed:", updatedUser);
+
+            // Send renewal notification
+            const message = {
+                receiver_id: subscription.userId._id,
+                title: "Subscription Renewed",
+                message: "Your subscription has been successfully renewed.",
+            };
+            await sendNotification(message, subscription.userId.device_token);
+
+            console.log("Subscription renewed successfully.");
+        }
+
+        // Handle expired subscription logic here if needed
+        if (notification.notificationType === "EXPIRED") {
+            console.log("Subscription has expired. Please inform the user to renew.");
+            // Update the subscription status to "expired" if applicable
+            subscription.subscriptionStatus = "expired";
+            await subscription.save();
+        }
+
+    } catch (error) {
+        console.error("Error handling subscription renewal:", error.message);
+    }
+};
+
+
+
+const handleCancel = async (notification) => {
+    try {
+        const subscription = await Subscription.findOne({
+            transactionId: notification.transactionId,
+        }).populate({ path: 'userId', select: "_id firstName lastName email" });
+
+        if (!subscription) {
+            console.log("No active subscription found to cancel.");
+            return;
+        }
+
+        // Update subscription status
+        subscription.subscriptionStatus = "canceled";
+        subscription.expiresAt = new Date();
+        await subscription.save();
+
+        // Update user plan status
+        const updatedUser = await User.findByIdAndUpdate(
+            subscription.userId._id,
+            {
+                subscriptionStatus: "canceled", // Reflect active subscription
+                updatedAt: new Date()         // Update the timestamp
+            },
+            { new: true } // Return the updated document
+        );
+        console.log("userUpdate", updatedUser)
+
+        // Send notification
+        const message = {
+            receiver_id: subscription.userId._id,
+            title: "Subscription Canceled",
+            message: "Your subscription has been canceled successfully.",
+        };
+        // await sendNotification(message, subscription.userId.device_token);
+
+        console.log("Subscription canceled successfully.");
+    } catch (error) {
+        console.error("Error canceling subscription:", error.message);
+    }
+};
+
+
+
+exports.cancelGoogleSubscription = async (req, res) => {
+    const notification = req.body;  // Google Play RTDN notification
+
+    if (notification.notificationType === 'CANCEL') {
+        const subscriptionId = notification.subscriptionId;  // Subscription ID
+        const userId = notification.userId;  // User ID
+
+        try {
+            // Find the subscription and update status to "canceled"
+            const subscription = await Subscription.findOne({ subscriptionId, userId });
+
+            if (!subscription) {
+                return res.status(404).json({
+                    message: "Subscription not found.",
+                });
+            }
+
+            // Update the subscription status to canceled
+            subscription.subscriptionStatus = "canceled";
+            await subscription.save();
+
+            return res.status(200).json({
+                message: "Subscription canceled successfully.",
+                data: subscription,
+            });
+        } catch (error) {
+            console.error("Error processing Google Play cancel notification:", error);
+            return res.status(500).json({
+                message: "Error processing subscription cancellation.",
+                error: error.message,
+            });
+        }
+    } else {
+        return res.status(400).json({
+            message: "Invalid notification type.",
+        });
+    }
+}

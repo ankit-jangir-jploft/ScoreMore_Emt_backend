@@ -52,6 +52,7 @@ router.delete('/feedback/:feedbackId', adminController.deleteFeedback);
 
 // subject 
 router.get("/getAllSubjects", adminController.getAllSubjects);
+router.post("/getOneSubjects", adminController.getOneSubjects);
 router.post("/addSubject", adminController.addSubject);
 router.put("/updateSubject/:id", adminController.updateSubject);
 router.delete("/deleteSubject/:id", adminController.deleteSubject);

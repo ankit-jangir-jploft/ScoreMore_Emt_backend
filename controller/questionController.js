@@ -7,6 +7,7 @@ const csv = require('csvtojson');
 const { default: mongoose } = require('mongoose');
 const TestResult = require('../models/TestResult');
 const FilteredQuestion = require('../models/FilterQuestionTestData');
+const Subject = require('../models/Subject');
 
 
 
@@ -277,33 +278,34 @@ exports.filterQuestions = async (req, res) => {
         data: finalQuestions,
         timeLimit: timeLimit,
       });
-    } 
+    }
     else {
       const userPreviousQuestions = await UserQuestionData.find({ userId });
       // console.log("userPrevious Questions---->", userPreviousQuestions);
-    
+
       // Map user question data for easier lookup
       const userQuestionMap = userPreviousQuestions.reduce((acc, question) => {
         acc[question.questionId.toString()] = question; // Ensure we're using the questionId for lookup as a string
         return acc;
       }, {});
       // console.log("userQuestionMap", userQuestionMap);
-    
+
       const question = await Question.find(); // Fetch the question data
-    
+
       // Format the data
       const questionsData = question.map(question => {
         // Convert options from Map to an array of objects
         const formattedOptions = Array.from(question.options.entries()).map(([key, value]) => {
           return { [key]: value }; // Create an object for each option
         });
-    
+
         return {
           _id: question._id.toString(), // Ensure _id is treated as a string
           question: question.question,
           options: formattedOptions,
           correctOption: question.correctOption,
           subject: question.subject,
+          subjectId: question.subjectId.toString(),
           level: question.level,
           explanation: question.explanation,
           tags: question.tags,
@@ -318,20 +320,35 @@ exports.filterQuestions = async (req, res) => {
           __v: question.__v
         };
       });
-    
+
       // Filter questions based on subjects and levels
-      let filteredQuestions = questionsData.filter((question) => {
-        const subjectKeys = Object.keys(subjects).filter(key => subjects[key]);
-        const matchesSubject = subjectKeys.length === 0 || subjectKeys.includes(question.subject);
-        const matchesLevel = !level || question.level === level;
-        return matchesSubject && matchesLevel && question.isActive;
-      });
-    
+      // let filteredQuestions = questionsData.filter((question) => {
+      //   const subjectKeys = Object.keys(subjects).filter(key => subjects[key]);
+      //   const matchesSubject = subjectKeys.length === 0 || subjectKeys.includes(question.subject);
+      //   const matchesLevel = !level || question.level === level;
+      //   return matchesSubject && matchesLevel && question.isActive;
+      // });
+
+      // Check if the subjects array is empty
+      let filteredQuestions;
+      if (subjects.length === 0) {
+        // If subjects array is empty, include all active questions
+        filteredQuestions = questionsData.filter((question) => question.isActive);
+      } else {
+        // Filter questions based on subjects and levels
+        filteredQuestions = questionsData.filter((question) => {
+          const matchesSubject = subjects.includes(question.subjectId); // Match subjectId
+          const matchesLevel = !level || question.level === level;
+          return matchesSubject && matchesLevel && question.isActive; // Ensure the question is active
+        });
+      }
+
+
       // console.log("Filtered Questions after subject/level filter:", JSON.stringify(filteredQuestions, null, 2));
-    
+
       // Create an array to store all matching questions
       let matchedQuestions = new Map(); // Use Map to ensure uniqueness by questionId
-    
+
       // Further filter based on questionType (e.g., marked, incorrect, unused, etc.)
       if (Object.keys(questionType).length > 0) {
         // First filter for unused questions
@@ -343,7 +360,7 @@ exports.filterQuestions = async (req, res) => {
             }
           });
         }
-      
+
         // Then filter for incorrect questions
         if (questionType.incorrect) {
           filteredQuestions.forEach((question) => {
@@ -353,7 +370,7 @@ exports.filterQuestions = async (req, res) => {
             }
           });
         }
-      
+
         // Then filter for marked questions
         if (questionType.marked) {
           filteredQuestions.forEach((question) => {
@@ -370,28 +387,37 @@ exports.filterQuestions = async (req, res) => {
           matchedQuestions.set(question._id, question); // Add to map (ensures uniqueness)
         });
       }
-      
+
       // Convert matchedQuestions map back to an array
       const finalFilteredQuestions = Array.from(matchedQuestions.values());
-    
+
+      if (finalFilteredQuestions.length === 0) {
+        return res.status(200).json({
+          success: true,
+          message: "No questions are available for your selected criteria",
+          data : []
+        });
+      }
+
       // console.log("Filtered Questions after questionType filter:", JSON.stringify(finalFilteredQuestions, null, 2));
-    
+
       // Shuffle the filtered questions
       const shuffledQuestions = shuffleArray(finalFilteredQuestions);
       // console.log("Filtered Questions after shuffling:======", shuffledQuestions);
-    
+
       // Slice the array to match the requested number of questions, ensuring it doesn't exceed the length
       const result = shuffledQuestions.slice(0, Math.min(numberOfQuestions, shuffledQuestions.length));
       // console.log("Resulting Questions:", result);
-    
+
       // Save filtered questions in the database
       const filteredQuestionEntry = new FilteredQuestion({
         testId, // Save the testId
         questions: result,
       });
-    
+      
+
       await filteredQuestionEntry.save(); // Save to the database
-    
+
       // Send the response back to the client, including the timeLimit
       res.status(200).json({
         success: true,
@@ -400,7 +426,7 @@ exports.filterQuestions = async (req, res) => {
         timeLimit: timeLimit, // Include timeLimit in the response
       });
     }
-    
+
 
   } catch (error) {
     console.error("Error filtering questions:", error);
@@ -489,12 +515,24 @@ exports.addQuestion = async (req, res) => {
       return res.status(400).json({ success: false, message: "This question already exists" });
     }
 
+    // Fetch the subjectId from the Subject collection
+    const subjectData = await Subject.findOne({ name: subject });
+    if (!subjectData) {
+      console.error("Subject not found");
+      return res.status(400).json({
+        message: "Subject not found. Please ensure the subject exists.",
+        success: false
+      });
+    }
+    const subjectId = subjectData._id;
+
     // Create the new question
     const newQuestion = new Question({
       question,
       options,
       correctOption,
       subject,
+      subjectId,
       level,
       explanation,
       tags: tags || [],
@@ -678,14 +716,14 @@ exports.submitQuestionFeedback = async (req, res) => {
       userId,
       questionId,
       feedbackText,
-      email: user.email, 
-      fullName: user.firstName ? user.firstName + " " + user.lastName : "",  
-      userType: user.isGuest ? "guest" : user.role,  
+      email: user.email,
+      fullName: user.firstName ? user.firstName + " " + user.lastName : "",
+      userType: user.isGuest ? "guest" : user.role,
       questionText: question.question,  // Save question text
       subject: question.subject,  // Save subject
       level: question.level,  // Save level
       explanation: question.explanation,  // Save explanation
-      
+
     });
 
     // console.log("newFeed0", newFeedback);
@@ -779,16 +817,30 @@ exports.updateQuestion = async (req, res) => {
   const { creatorId, question, options, correctOption, subject, level, explanation, tags, isActive } = req.body;
 
   const updates = {};
-  if (creatorId) updates.creatorId = creatorId;
-  if (question) updates.question = question;
-  if (correctOption) updates.correctOption = correctOption;
-  if (subject) updates.subject = subject;
-  if (level) updates.level = level;
-  if (explanation) updates.explanation = explanation;
-  if (tags) updates.tags = tags;
-  if (typeof isActive === 'boolean') updates.isActive = isActive;
 
   try {
+    // Check and validate the subject
+    if (subject) {
+      const subjectData = await Subject.findOne({ name: subject });
+      if (!subjectData) {
+        return res.status(400).json({
+          message: "Subject not found. Please ensure the subject exists.",
+          success: false,
+        });
+      }
+      console.log("subjectData", subjectData)
+      updates.subject = subject;
+      updates.subjectId = subjectData._id; // Assign SubjectId only if subject is valid
+    }
+
+    if (creatorId) updates.creatorId = creatorId;
+    if (question) updates.question = question;
+    if (correctOption) updates.correctOption = correctOption;
+    if (level) updates.level = level;
+    if (explanation) updates.explanation = explanation;
+    if (tags) updates.tags = tags;
+    if (typeof isActive === 'boolean') updates.isActive = isActive;
+
     const existingQuestion = await Question.findById(req.params.id);
 
     if (!existingQuestion) {
@@ -799,7 +851,7 @@ exports.updateQuestion = async (req, res) => {
     if (options) {
       updates.options = {
         ...existingQuestion.options.toObject(), // Convert to plain object to avoid metadata
-        ...options // Merge with new options
+        ...options, // Merge with new options
       };
     }
 
@@ -819,6 +871,7 @@ exports.updateQuestion = async (req, res) => {
     return res.status(500).json({ message: "Error updating question", error: error.message });
   }
 };
+
 
 exports.deleteQuestion = async (req, res) => {
   try {
